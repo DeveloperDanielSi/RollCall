@@ -1,0 +1,36 @@
+﻿@page "/authentication/login"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IAccessTokenProvider AccessTokenProvider
+
+<h3>Login</h3>
+
+<p>@authState</p>
+
+<RemoteAuthenticatorView Action="LogIn" DefaultRedirectUri="/classes" />
+
+@code {
+    private string authState = "Not logged in";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await AccessTokenProvider.RequestAccessToken();
+
+        if (result.TryGetToken(out var token))
+        {
+            var userInfo = await JS.InvokeAsync<UserInfo>("firebase.auth().currentUser");
+            if (userInfo != null)
+            {
+                authState = $"Logged in as {userInfo.email}";
+            }
+        }
+    }
+
+    private class UserInfo
+    {
+        public string uid { get; set; }
+        public string email { get; set; }
+        public string firstName { get; set; }
+        public string lastName { get; set; }
+    }
+}

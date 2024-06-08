@@ -1,0 +1,14 @@
+﻿@page "/settings"
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>Settings</PageTitle>
+
+<button @onclick="NavigateToLogout">Logout</button>
+
+@code {
+    private void NavigateToLogout()
+    {
+        Navigation.NavigateTo("/authentication/logout");
+    }
+}

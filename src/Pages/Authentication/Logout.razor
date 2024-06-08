@@ -1,0 +1,20 @@
+﻿@page "/authentication/logout"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<RemoteAuthenticatorView Action="LogOut" />
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("logout");
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout failed: {ex.Message}");
+        }
+    }
+}
