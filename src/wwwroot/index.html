@@ -10,10 +10,6 @@
     <link rel="stylesheet" href="css/app.css" />
     <link href="RollCall.styles.css" rel="stylesheet" />
 
-    <!-- Google Configuration -->
-    <script src="js/GoogleOAuth.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
     <!-- Firebase Configuration -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
@@ -39,8 +35,22 @@
 
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({
+                'hd': 'uri.edu' // Restrict to uri.edu domain
+            });
+
             try {
-                await auth.signInWithRedirect(provider);
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                const emailDomain = user.email.split('@')[1];
+
+                if (emailDomain !== 'uri.edu') {
+                    await auth.signOut();
+                    alert('Only URI.edu emails are allowed.');
+                } else {
+                    await saveUserData(user);
+                    window.location.href = "/classes"; // Redirect to /classes page after successful login
+                }
             } catch (error) {
                 console.error("Sign in error:", error);
                 throw new Error(error.message);

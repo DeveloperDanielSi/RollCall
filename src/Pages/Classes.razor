@@ -4,3 +4,15 @@
 <h3>Classes</h3>
 
 <p>Welcome to your classes, have a great day!</p>
+
+<button @onclick="RedirectToAddClass" class="btn btn-primary">Add Class</button>
+
+@code {
+    private void RedirectToAddClass()
+    {
+        NavigationManager.NavigateTo("/classes/create");
+    }
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+}
