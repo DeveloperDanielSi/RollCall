@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
-using System.Net.Http;
 using RollCall;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
