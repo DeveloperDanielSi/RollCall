@@ -1,0 +1,150 @@
+﻿@page "/classes/create"
+@using System.ComponentModel.DataAnnotations
+@using Firebase.Database
+@using Firebase.Database.Query
+@inject IConfiguration Configuration
+
+<PageTitle>Create Class</PageTitle>
+
+<h3>Create Class</h3>
+
+<EditForm Model="@classModel" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label>Class Name:</label>
+        <InputText @bind-Value="classModel.ClassName" />
+    </div>
+
+    <div>
+        <label>What days does the class meet?</label>
+        <InputSelect @bind-Value="classModel.SelectedDay">
+            @foreach (DaysOfWeek day in Enum.GetValues(typeof(DaysOfWeek)))
+            {
+                <option value="@day">@day</option>
+            }
+        </InputSelect>
+    </div>
+
+    <div>
+        <label>Class Start Time:</label>
+        <InputText @bind-Value="classModel.ClassStartTime" />
+    </div>
+
+    <div>
+        <label>Class End Time:</label>
+        <InputText @bind-Value="classModel.ClassEndTime" />
+    </div>
+
+    <div>
+        <label>How many minutes is considered late?</label>
+        <InputNumber @bind-Value="classModel.LateMinutes" />
+    </div>
+
+    <div>
+        <label>How many minutes is considered absent?</label>
+        <InputNumber @bind-Value="classModel.AbsentMinutes" />
+    </div>
+
+    <div>
+        <label>Set Location:</label>
+        <InputText @bind-Value="classModel.Location" />
+        <button type="button" @onclick="SetLocation">Set Location</button>
+    </div>
+
+    <div>
+        <label>In feet how far should students be able to check in from where you are?</label>
+        <InputNumber @bind-Value="classModel.CheckInDistance" />
+    </div>
+
+    <button type="submit">Submit</button>
+</EditForm>
+
+@code {
+    public enum DaysOfWeek
+    {
+        Sunday,
+        Monday,
+        Tuesday,
+        Wednesday,
+        Thursday,
+        Friday,
+        Saturday
+    }
+
+    public class ClassModel
+    {
+        [Required]
+        public string ClassName { get; set; } = string.Empty;
+        [Required]
+        public DaysOfWeek SelectedDay { get; set; } = DaysOfWeek.Sunday;
+        [Required]
+        public string ClassStartTime { get; set; } = string.Empty;
+        [Required]
+        public string ClassEndTime { get; set; } = string.Empty;
+        [Required]
+        public int LateMinutes { get; set; } = 0;
+        [Required]
+        public int AbsentMinutes { get; set; } = 0;
+        public string Location { get; set; } = string.Empty;
+        [Required]
+        public int CheckInDistance { get; set; } = 0;
+    }
+
+    private ClassModel classModel = new ClassModel();
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (Configuration == null)
+            {
+                throw new Exception("Configuration is null");
+            }
+
+            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+            Console.WriteLine($"Database URL: {databaseUrl}");
+            if (string.IsNullOrEmpty(databaseUrl))
+            {
+                throw new Exception("Firebase:DatabaseUrl is null or empty");
+            }
+
+            var startTime = TimeSpan.Parse(classModel.ClassStartTime);
+            var endTime = TimeSpan.Parse(classModel.ClassEndTime);
+
+            var firebaseClient = new FirebaseClient(databaseUrl);
+            var uid = Guid.NewGuid().ToString(); // Generate a unique ID for the class
+
+            var classData = new
+            {
+                classModel.ClassName,
+                classModel.SelectedDay,
+                ClassStartTime = startTime.ToString(@"hh\:mm"),
+                ClassEndTime = endTime.ToString(@"hh\:mm"),
+                classModel.LateMinutes,
+                classModel.AbsentMinutes,
+                classModel.Location,
+                classModel.CheckInDistance
+            };
+
+            await firebaseClient
+                .Child("Classes")
+                .Child(classModel.ClassName)
+                .PutAsync(classData);
+
+            Console.WriteLine("Class successfully created and pushed to Firebase.");
+        }
+        catch (Exception ex)
+        {
+            // Handle exceptions
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private void SetLocation()
+    {
+        // Handle setting location logic
+        Console.WriteLine("Location set.");
+    }
+}

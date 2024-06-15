@@ -1,8 +1,10 @@
 ﻿@page "/"
+@inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+
 <PageTitle>Home</PageTitle>
 
-<button class="gsi-material-button" @onclick="NavigateToLogin">
+<button class="gsi-material-button" @onclick="Login">
     <div class="gsi-material-button-state"></div>
     <div class="gsi-material-button-content-wrapper">
         <div class="gsi-material-button-icon">
@@ -20,8 +22,9 @@
 </button>
 
 @code {
-    private void NavigateToLogin()
+    private async Task Login()
     {
-        Navigation.NavigateTo("/authentication/login");
+        await JSRuntime.InvokeVoidAsync("loginWithGoogle");
+        Navigation.NavigateTo("/classes");
     }
 }

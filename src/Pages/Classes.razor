@@ -4,3 +4,104 @@
 <h3>Classes</h3>
 
 <p>Welcome to your classes, have a great day!</p>
+
+<button @onclick="RedirectToAddClass" class="btn btn-primary">Add Class</button>
+
+@if (classes == null)
+{
+    <p>Loading classes...</p>
+}
+else if (classes.Count == 0)
+{
+    <p>No classes available.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var classItem in classes)
+        {
+            <li class="list-group-item">
+                @{
+                    var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+                }
+                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                    @classItem.ClassName
+                </a>
+                <div class="collapse" id="collapse-@sanitizedClassName">
+                    <div class="card card-body">
+                        <p><strong>Day:</strong> @classItem.SelectedDay</p>
+                        <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
+                        <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
+                        <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
+                        <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
+                        <p><strong>Location:</strong> @classItem.Location</p>
+                        <p><strong>Check-In Distance:</strong> @classItem.CheckInDistance feet</p>
+                    </div>
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+
+    [Inject]
+    private IConfiguration Configuration { get; set; }
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+
+    private List<ClassModel> classes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClasses();
+    }
+
+    private void RedirectToAddClass()
+    {
+        NavigationManager.NavigateTo("/classes/create");
+    }
+
+    private async Task LoadClasses()
+    {
+        try
+        {
+            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+            if (string.IsNullOrEmpty(databaseUrl))
+            {
+                throw new Exception("Firebase:DatabaseUrl is null or empty");
+            }
+
+            var firebaseClient = new FirebaseClient(databaseUrl);
+            var result = await firebaseClient
+                .Child("Classes")
+                .OnceAsync<ClassModel>();
+
+            classes = result.Select(item => item.Object).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading classes: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleClassDetails(string className)
+    {
+        await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
+    }
+
+    public class ClassModel
+    {
+        public string ClassName { get; set; }
+        public string SelectedDay { get; set; }
+        public string ClassStartTime { get; set; }
+        public string ClassEndTime { get; set; }
+        public int LateMinutes { get; set; }
+        public int AbsentMinutes { get; set; }
+        public string Location { get; set; }
+        public int CheckInDistance { get; set; }
+    }
+}

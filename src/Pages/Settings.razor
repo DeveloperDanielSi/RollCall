@@ -1,14 +1,16 @@
 ﻿@page "/settings"
-@inject NavigationManager Navigation
 @attribute [Authorize]
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <PageTitle>Settings</PageTitle>
 
-<button @onclick="NavigateToLogout">Logout</button>
+<button class="btn btn-primary" @onclick="Logout">Logout</button>
 
 @code {
-    private void NavigateToLogout()
+    private async Task Logout()
     {
-        Navigation.NavigateTo("/authentication/logout");
+        await JSRuntime.InvokeVoidAsync("logout");
+        Navigation.NavigateTo("/");
     }
 }

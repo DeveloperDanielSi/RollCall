@@ -14,7 +14,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddOidcAuthentication(options =>
 {
     options.ProviderOptions.Authority = "https://accounts.google.com";
-    options.ProviderOptions.ClientId = "968520920745-bghd5ldv30hv1ofvuh4gqm201s7p95sj.apps.googleusercontent.com"; // Use your Google Client ID
+    options.ProviderOptions.ClientId = "968520920745-bghd5ldv30hv1ofvuh4gqm201s7p95sj.apps.googleusercontent.com";
     options.ProviderOptions.ResponseType = "code";
     options.ProviderOptions.RedirectUri = builder.HostEnvironment.BaseAddress + "authentication/login-callback";
     options.ProviderOptions.PostLogoutRedirectUri = builder.HostEnvironment.BaseAddress;
