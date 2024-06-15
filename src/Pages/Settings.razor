@@ -1,11 +1,18 @@
 ﻿@page "/settings"
+<<<<<<< HEAD
 @attribute [Authorize]
+=======
+>>>>>>> 85941afd85b75e192c7eafcd85f03994e78b09d1
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
 <PageTitle>Settings</PageTitle>
 
+<<<<<<< HEAD
 <button class="btn btn-primary" @onclick="Logout">Logout</button>
+=======
+<button @onclick="Logout">Logout</button>
+>>>>>>> 85941afd85b75e192c7eafcd85f03994e78b09d1
 
 @code {
     private async Task Logout()

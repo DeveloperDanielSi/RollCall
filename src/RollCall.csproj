@@ -8,8 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="FirebaseDatabase.net" Version="4.2.0" />
+<<<<<<< HEAD
     <PackageReference Include="jQuery" Version="3.7.1" />
     <PackageReference Include="LiteDB" Version="5.0.20" />
+=======
+>>>>>>> 85941afd85b75e192c7eafcd85f03994e78b09d1
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="8.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.5" PrivateAssets="all" />
