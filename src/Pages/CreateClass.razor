@@ -19,22 +19,36 @@
 
     <div>
         <label>What days does the class meet?</label>
-        <InputSelect @bind-Value="classModel.SelectedDay">
-            @foreach (DaysOfWeek day in Enum.GetValues(typeof(DaysOfWeek)))
-            {
-                <option value="@day">@day</option>
-            }
-        </InputSelect>
+        <div>
+            <InputCheckbox @bind-Value="classModel.Monday" />
+            <label>Monday</label>
+        </div>
+        <div>
+            <InputCheckbox @bind-Value="classModel.Tuesday" />
+            <label>Tuesday</label>
+        </div>
+        <div>
+            <InputCheckbox @bind-Value="classModel.Wednesday" />
+            <label>Wednesday</label>
+        </div>
+        <div>
+            <InputCheckbox @bind-Value="classModel.Thursday" />
+            <label>Thursday</label>
+        </div>
+        <div>
+            <InputCheckbox @bind-Value="classModel.Friday" />
+            <label>Friday</label>
+        </div>
     </div>
 
     <div>
         <label>Class Start Time:</label>
-        <InputText @bind-Value="classModel.ClassStartTime" />
+        <InputText @bind-Value="classModel.ClassStartTime" type="time" />
     </div>
 
     <div>
         <label>Class End Time:</label>
-        <InputText @bind-Value="classModel.ClassEndTime" />
+        <InputText @bind-Value="classModel.ClassEndTime" type="time" />
     </div>
 
     <div>
@@ -61,24 +75,21 @@
     <button type="submit">Submit</button>
 </EditForm>
 
-@code {
-    public enum DaysOfWeek
-    {
-        Sunday,
-        Monday,
-        Tuesday,
-        Wednesday,
-        Thursday,
-        Friday,
-        Saturday
-    }
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 
+@code {
     public class ClassModel
     {
         [Required]
         public string ClassName { get; set; } = string.Empty;
-        [Required]
-        public DaysOfWeek SelectedDay { get; set; } = DaysOfWeek.Sunday;
+        public bool Monday { get; set; }
+        public bool Tuesday { get; set; }
+        public bool Wednesday { get; set; }
+        public bool Thursday { get; set; }
+        public bool Friday { get; set; }
         [Required]
         public string ClassStartTime { get; set; } = string.Empty;
         [Required]
@@ -87,12 +98,14 @@
         public int LateMinutes { get; set; } = 0;
         [Required]
         public int AbsentMinutes { get; set; } = 0;
+        [Required]
         public string Location { get; set; } = string.Empty;
         [Required]
         public int CheckInDistance { get; set; } = 0;
     }
 
     private ClassModel classModel = new ClassModel();
+    private string errorMessage = string.Empty;
 
     private async Task HandleValidSubmit()
     {
@@ -104,7 +117,6 @@
             }
 
             string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-            Console.WriteLine($"Database URL: {databaseUrl}");
             if (string.IsNullOrEmpty(databaseUrl))
             {
                 throw new Exception("Firebase:DatabaseUrl is null or empty");
@@ -116,10 +128,17 @@
             var firebaseClient = new FirebaseClient(databaseUrl);
             var uid = Guid.NewGuid().ToString(); // Generate a unique ID for the class
 
+            var selectedDays = new List<string>();
+            if (classModel.Monday) selectedDays.Add("Monday");
+            if (classModel.Tuesday) selectedDays.Add("Tuesday");
+            if (classModel.Wednesday) selectedDays.Add("Wednesday");
+            if (classModel.Thursday) selectedDays.Add("Thursday");
+            if (classModel.Friday) selectedDays.Add("Friday");
+
             var classData = new
             {
                 classModel.ClassName,
-                classModel.SelectedDay,
+                SelectedDays = selectedDays,
                 ClassStartTime = startTime.ToString(@"hh\:mm"),
                 ClassEndTime = endTime.ToString(@"hh\:mm"),
                 classModel.LateMinutes,
@@ -137,8 +156,7 @@
         }
         catch (Exception ex)
         {
-            // Handle exceptions
-            Console.WriteLine($"Error: {ex.Message}");
+            errorMessage = $"Error: {ex.Message}";
         }
     }
 

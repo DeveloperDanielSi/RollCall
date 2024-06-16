@@ -29,7 +29,7 @@ else
                 </a>
                 <div class="collapse" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
-                        <p><strong>Day:</strong> @classItem.SelectedDay</p>
+                        <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
                         <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
                         <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
                         <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
@@ -96,7 +96,7 @@ else
     public class ClassModel
     {
         public string ClassName { get; set; }
-        public string SelectedDay { get; set; }
+        public List<string> SelectedDays { get; set; }
         public string ClassStartTime { get; set; }
         public string ClassEndTime { get; set; }
         public int LateMinutes { get; set; }

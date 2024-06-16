@@ -50,6 +50,7 @@
                 if (emailDomain !== 'uri.edu') {
                     await auth.signOut();
                     alert('Only URI.edu emails are allowed.');
+                    clearCookies();
                 } else {
                     await saveUserData(user);
                     window.location.href = "/classes";
@@ -69,24 +70,26 @@
             });
         }
 
-        function clearCookies() {
-            // Function to clear cookies
-            document.cookie.split(";").forEach(function (c) {
-                document.cookie = c.trim().split("=")[0] + "=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/";
-            });
-        }
-
         async function logout() {
             try {
                 await auth.signOut();
-                clearCookies();
                 console.log("User signed out.");
-                // Redirect to home page after logout
-                window.location.href = "/";
+                clearCookies();
             } catch (error) {
                 console.error("Sign out error:", error);
                 throw new Error(error.message);
             }
+        }
+
+        function clearCookies() {
+            var cookies = document.cookie.split(";");
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i];
+                var eqPos = cookie.indexOf("=");
+                var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+            window.location.href = '/'; // Redirect to the desired page after clearing cookies
         }
 
         function onFirebaseAuthStateChanged(callback) {

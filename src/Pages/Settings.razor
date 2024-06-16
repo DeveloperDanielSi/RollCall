@@ -5,12 +5,49 @@
 
 <PageTitle>Settings</PageTitle>
 
+<h3>User Profile</h3>
+<div>
+    <img src="path/to/profile/pic.jpg" alt="Profile Picture" class="profile-pic" />
+    <p>Name: @userName</p>
+    <p>Email: @userEmail</p>
+</div>
+
+<h3>Theme Settings</h3>
+<div>
+    <label>
+        <input type="radio" name="theme" value="light" @onclick="SetLightTheme" /> Light Mode
+    </label>
+    <label>
+        <input type="radio" name="theme" value="dark" @onclick="SetDarkTheme" /> Dark Mode
+    </label>
+</div>
+
 <button class="btn btn-primary" @onclick="Logout">Logout</button>
 
 @code {
+    private string userName = "John Doe";
+    private string userEmail = "john.doe@example.com";
+
     private async Task Logout()
     {
         await JSRuntime.InvokeVoidAsync("logout");
         Navigation.NavigateTo("/");
+    }
+
+    private void SetLightTheme()
+    {
+        SetTheme("light");
+    }
+
+    private void SetDarkTheme()
+    {
+        SetTheme("dark");
+    }
+
+    private void SetTheme(string theme)
+    {
+        // Logic to set the theme
+        // You might want to store the theme setting in local storage or a database
+        Console.WriteLine($"Theme set to: {theme}");
     }
 }
