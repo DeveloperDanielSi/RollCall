@@ -3,6 +3,7 @@
 @using Firebase.Database
 @using Firebase.Database.Query
 @inject IConfiguration Configuration
+@inject NavigationManager Navigation
 
 <PageTitle>Create Class</PageTitle>
 
@@ -81,6 +82,9 @@
 }
 
 @code {
+    [Inject]
+    private NavigationManager NavigationManager { get; set; }
+
     public class ClassModel
     {
         [Required]
@@ -148,11 +152,12 @@
             };
 
             await firebaseClient
-                .Child("Classes")
+                .Child("classes")
                 .Child(classModel.ClassName)
                 .PutAsync(classData);
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
+            Navigation.NavigateTo("/classes");
         }
         catch (Exception ex)
         {

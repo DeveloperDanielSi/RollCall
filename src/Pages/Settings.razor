@@ -7,7 +7,6 @@
 
 <h3>User Profile</h3>
 <div>
-    <img src="path/to/profile/pic.jpg" alt="Profile Picture" class="profile-pic" />
     <p>Name: @userName</p>
     <p>Email: @userEmail</p>
 </div>
@@ -25,8 +24,27 @@
 <button class="btn btn-primary" @onclick="Logout">Logout</button>
 
 @code {
-    private string userName = "John Doe";
-    private string userEmail = "john.doe@example.com";
+    private string userName;
+    private string userEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+        if (userData != null)
+        {
+            userName = userData.DisplayName;
+            userEmail = userData.Email;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateUserData(UserData userData)
+    {
+        userName = userData.DisplayName;
+        userEmail = userData.Email;
+        await InvokeAsync(StateHasChanged);
+    }
 
     private async Task Logout()
     {
@@ -49,5 +67,11 @@
         // Logic to set the theme
         // You might want to store the theme setting in local storage or a database
         Console.WriteLine($"Theme set to: {theme}");
+    }
+
+    public class UserData
+    {
+        public string DisplayName { get; set; }
+        public string Email { get; set; }
     }
 }
