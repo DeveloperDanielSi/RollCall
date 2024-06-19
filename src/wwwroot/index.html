@@ -5,20 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RollCall</title>
     <base href="/" />
+
+    <!-- Bootstrap and custom CSS -->
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="RollCall.styles.css" rel="stylesheet" />
 
-    <!-- Firebase Configuration -->
+    <!-- Firebase Configuration Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+
+    <!-- jQuery and Bootstrap JavaScript -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 
     <script>
-        // Your web app's Firebase configuration
+        // Firebase configuration object
         const firebaseConfig = {
             apiKey: "AIzaSyDFzfBDWVd-H6dIADQUmmxiRt3Tu5zEw80",
             authDomain: "rollcall-4f68e.firebaseapp.com",
@@ -35,10 +39,11 @@
         const auth = firebase.auth();
         const database = firebase.database();
 
+        // Function to handle Google login
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
-                'hd': 'uri.edu',
+                'hd': 'uri.edu', // Restrict to URI.edu domain
                 'prompt': 'select_account'
             });
 
@@ -52,7 +57,7 @@
                     alert('Only URI.edu emails are allowed.');
                 } else {
                     await saveUserData(user);
-                    window.location.href = "/classes";
+                    window.location.href = "/classes"; // Redirect to classes page on successful login
                 }
             } catch (error) {
                 console.error("Sign in error:", error);
@@ -60,16 +65,18 @@
             }
         }
 
+        // Function to save user data to Firebase
         async function saveUserData(user) {
             const userRef = database.ref('users/' + user.uid);
             await userRef.set({
                 firstName: user.displayName.split(' ')[0],
                 lastName: user.displayName.split(' ').slice(1).join(' '),
                 email: user.email,
-                instructor: false
+                instructor: false // Default role set to false
             });
         }
 
+        // Function to get current user data
         function getUserData() {
             const user = firebase.auth().currentUser;
             if (user) {
@@ -82,6 +89,7 @@
             return null;
         }
 
+        // Function to handle user logout
         async function logout() {
             try {
                 await auth.signOut();
@@ -92,11 +100,12 @@
             }
         }
 
+        // Function to check if user is authenticated
         function isUserAuthenticated() {
             return !!auth.currentUser;
         }
 
-        // JavaScript function to toggle collapse
+        // Function to toggle collapse for elements with the specified class name
         function toggleCollapse(className) {
             const element = document.getElementById(className);
             if (element) {
@@ -104,7 +113,7 @@
             }
         }
 
-        // Expose functions to the global scope
+        // Expose functions to the global scope for accessibility
         window.loginWithGoogle = loginWithGoogle;
         window.logout = logout;
         window.isUserAuthenticated = isUserAuthenticated;
@@ -114,6 +123,7 @@
 </head>
 <body>
     <div id="app">
+        <!-- Loading spinner while the app is initializing -->
         <svg class="loading-progress">
             <circle r="40%" cx="50%" cy="50%" />
             <circle r="40%" cx="50%" cy="50%" />
@@ -126,6 +136,7 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+    <!-- Blazor WebAssembly JavaScript -->
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

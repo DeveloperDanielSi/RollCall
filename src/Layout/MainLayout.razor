@@ -1,14 +1,20 @@
 ﻿@inherits LayoutComponentBase
+
+<!-- Main layout structure -->
 <div class="page">
+    <!-- Sidebar section containing the navigation menu -->
     <div class="sidebar">
         <NavMenu />
     </div>
 
+    <!-- Main content area -->
     <main>
+        <!-- Top row with a link to the GitHub repository -->
         <div class="top-row px-4">
             <a href="https://github.com/TheGreatestDaniel/RollCall" target="_blank">About</a>
         </div>
 
+        <!-- Article section where the main content of the page will be displayed -->
         <article class="content px-4">
             @Body
         </article>

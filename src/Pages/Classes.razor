@@ -4,32 +4,42 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
+<!-- Page title -->
 <h3>Classes</h3>
 
+<!-- Welcome message -->
 <p>Welcome to your classes, have a great day!</p>
 
+<!-- Button to add a new class -->
 <button @onclick="RedirectToAddClass" class="btn btn-primary">Add Class</button>
 
+<!-- Conditional rendering of class list -->
 @if (classes == null)
 {
+    <!-- Show loading message while classes are being loaded -->
     <p>Loading classes...</p>
 }
 else if (classes.Count == 0)
 {
+    <!-- Show message if no classes are available -->
     <p>No classes available.</p>
 }
 else
 {
+    <!-- Display list of classes -->
     <ul class="list-group">
         @foreach (var classItem in classes)
         {
+            <!-- Sanitize class name to use as collapse id -->
             <li class="list-group-item">
-                @{
-                    var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
-                }
-                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
-                    @classItem.ClassName
-                </a>
+            @{
+                var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+            }
+            <!-- Link to toggle class details -->
+            <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                @classItem.ClassName
+            </a>
+            <!-- Collapsible div for class details -->
                 <div class="collapse" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
                         <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
@@ -47,33 +57,40 @@ else
 }
 
 @code {
+    // List to store class details
     private List<ClassModel> classes;
 
+    // Load classes when the component is initialized
     protected override async Task OnInitializedAsync()
     {
         await LoadClasses();
     }
 
+    // Redirect to the add class page
     private void RedirectToAddClass()
     {
         Navigation.NavigateTo("/classes/create");
     }
 
+    // Load classes from Firebase database
     private async Task LoadClasses()
     {
         try
         {
+            // Firebase database URL
             string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
             if (string.IsNullOrEmpty(databaseUrl))
             {
                 throw new Exception("Firebase:DatabaseUrl is null or empty");
             }
 
+            // Initialize Firebase client
             var firebaseClient = new FirebaseClient(databaseUrl);
             var result = await firebaseClient
                 .Child("classes")
                 .OnceAsync<ClassModel>();
 
+            // Store class details in the list
             classes = result.Select(item => item.Object).ToList();
         }
         catch (Exception ex)
@@ -82,11 +99,13 @@ else
         }
     }
 
+    // Toggle class details visibility
     private async Task ToggleClassDetails(string className)
     {
         await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
     }
 
+    // Class model to store class details
     public class ClassModel
     {
         public string ClassName { get; set; }

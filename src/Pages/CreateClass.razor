@@ -2,6 +2,7 @@
 @using System.ComponentModel.DataAnnotations
 @using Firebase.Database
 @using Firebase.Database.Query
+@inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
@@ -9,15 +10,18 @@
 
 <h3>Create Class</h3>
 
+<!-- Form to create a new class -->
 <EditForm Model="@classModel" OnValidSubmit="HandleValidSubmit">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
+    <!-- Class Name input field -->
     <div>
         <label>Class Name:</label>
         <InputText @bind-Value="classModel.ClassName" />
     </div>
 
+    <!-- Days of the week checkboxes -->
     <div>
         <label>What days does the class meet?</label>
         <div>
@@ -42,49 +46,55 @@
         </div>
     </div>
 
+    <!-- Class Start Time input field -->
     <div>
         <label>Class Start Time:</label>
         <InputText @bind-Value="classModel.ClassStartTime" type="time" />
     </div>
 
+    <!-- Class End Time input field -->
     <div>
         <label>Class End Time:</label>
         <InputText @bind-Value="classModel.ClassEndTime" type="time" />
     </div>
 
+    <!-- Late Minutes input field -->
     <div>
         <label>How many minutes is considered late?</label>
         <InputNumber @bind-Value="classModel.LateMinutes" />
     </div>
 
+    <!-- Absent Minutes input field -->
     <div>
         <label>How many minutes is considered absent?</label>
         <InputNumber @bind-Value="classModel.AbsentMinutes" />
     </div>
 
+    <!-- Location input field and button -->
     <div>
         <label>Set Location:</label>
         <InputText @bind-Value="classModel.Location" />
         <button type="button" @onclick="SetLocation">Set Location</button>
     </div>
 
+    <!-- Check-In Distance input field -->
     <div>
         <label>In feet how far should students be able to check in from where you are?</label>
         <InputNumber @bind-Value="classModel.CheckInDistance" />
     </div>
 
+    <!-- Submit button -->
     <button type="submit">Submit</button>
 </EditForm>
 
+<!-- Display error message if any -->
 @if (!string.IsNullOrEmpty(errorMessage))
 {
     <div class="alert alert-danger">@errorMessage</div>
 }
 
 @code {
-    [Inject]
-    private NavigationManager NavigationManager { get; set; }
-
+    // Model for class creation
     public class ClassModel
     {
         [Required]
@@ -108,9 +118,11 @@
         public int CheckInDistance { get; set; } = 0;
     }
 
+    // Instance of the class model
     private ClassModel classModel = new ClassModel();
     private string errorMessage = string.Empty;
 
+    // Handle form submission
     private async Task HandleValidSubmit()
     {
         try
@@ -151,13 +163,14 @@
                 classModel.CheckInDistance
             };
 
+            // Save class data to Firebase
             await firebaseClient
                 .Child("classes")
-                .Child(classModel.ClassName)
+                .Child(uid)
                 .PutAsync(classData);
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
-            Navigation.NavigateTo("/classes");
+            Navigation.NavigateTo("/classes"); // Redirect to classes page
         }
         catch (Exception ex)
         {
@@ -165,6 +178,7 @@
         }
     }
 
+    // Set location for the class
     private void SetLocation()
     {
         // Handle setting location logic

@@ -1,24 +1,31 @@
-﻿﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿<!-- Top navigation bar -->
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
+        <!-- Brand name with a link to the home page -->
         <a class="navbar-brand" href="">RollCall</a>
+        <!-- Button to toggle the navigation menu -->
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
 </div>
 
+<!-- Navigation menu -->
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
+        <!-- Home link -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
+        <!-- Classes link -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="classes">
                 <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Classes
             </NavLink>
         </div>
+        <!-- Settings link -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="settings">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Settings
@@ -28,10 +35,13 @@
 </div>
 
 @code {
+    // Field to control the collapse state of the navigation menu
     private bool collapseNavMenu = true;
 
+    // Property to get the appropriate CSS class based on the collapse state
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
+    // Method to toggle the collapse state of the navigation menu
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
