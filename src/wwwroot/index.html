@@ -43,22 +43,22 @@
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
-                'hd': 'uri.edu', // Restrict to URI.edu domain
-                'prompt': 'select_account'
+                //'hd': 'uri.edu', // Restrict to URI.edu domain
+                //'prompt': 'select_account'
             });
-
+        
             try {
                 const result = await auth.signInWithPopup(provider);
                 const user = result.user;
                 const emailDomain = user.email.split('@')[1];
-
+                /*
                 if (emailDomain !== 'uri.edu') {
                     await auth.signOut();
                     alert('Only URI.edu emails are allowed.');
-                } else {
+                } else {*/
                     await saveUserData(user);
                     window.location.href = "/classes"; // Redirect to classes page on successful login
-                }
+                //}
             } catch (error) {
                 console.error("Sign in error:", error);
                 alert("Sign in failed. Please try again.");

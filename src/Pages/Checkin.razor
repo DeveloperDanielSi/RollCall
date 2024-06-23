@@ -1,0 +1,32 @@
+﻿@page "/checkin"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+
+<h>You have been signed in</h>
+<p>You will be returned to your class page in 5 seconds...</p>
+<!-- button that returns user back to /classes -->
+<button @onclick="RedirectToClasses" class="btn btn-primary">Return Now</button>
+
+@code {
+
+    //button code to return to /classes
+    private void RedirectToClasses()
+    {
+        Navigation.NavigateTo("/classes");
+    }
+
+    //return to /classes after 5 seconds
+    void WaitAndReturn()
+    {
+        Thread.Sleep(5000);
+        Navigation.NavigateTo("/classes");
+    }
+
+    //render the page once, then invoke WaitAndReturn
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        await Task.Delay(1);
+        if(firstRender) WaitAndReturn();
+    }
+
+}
