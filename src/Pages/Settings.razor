@@ -28,8 +28,8 @@
 
 @code {
     // Fields to store user data
-    private string userName;
-    private string userEmail;
+    private string userName = string.Empty;
+    private string userEmail = string.Empty;
 
     // On component initialization, fetch user data from JavaScript
     protected override async Task OnInitializedAsync()
@@ -81,7 +81,7 @@
     // Class to represent user data
     public class UserData
     {
-        public string DisplayName { get; set; }
-        public string Email { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 }

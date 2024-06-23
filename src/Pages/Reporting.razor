@@ -1,0 +1,17 @@
+﻿@page "/reporting"
+@attribute [Authorize]
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Reporting</PageTitle>
+
+<h3>Reporting</h3>
+
+@code {
+    /*
+     * CreateClasses will generate an google sheet utilizing the end date of the class and days selected to populate the sheet with the dates of the class up until the end of the class.
+     * The sheet will be populated with the dates of the class and the students that are enrolled in the class. 
+     * Then when we implement thecheck in feature we will be able to populate the sheet with the attendance of the students. That way we can establish a record of attendance for each student.
+     * To pull that data we will have a second sheet that keeps track of the attendance of each student (ie, absceneces, tardies, and present days).
+     */
+}

@@ -1,25 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RollCall</title>
     <base href="/" />
+
+    <!-- Bootstrap and custom CSS -->
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="RollCall.styles.css" rel="stylesheet" />
 
-    <!-- Firebase Configuration -->
+    <!-- Firebase Configuration Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+
+    <!-- jQuery and Bootstrap JavaScript -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 
     <script>
-        // Your web app's Firebase configuration
+        // Firebase configuration object
         const firebaseConfig = {
             apiKey: "AIzaSyDFzfBDWVd-H6dIADQUmmxiRt3Tu5zEw80",
             authDomain: "rollcall-4f68e.firebaseapp.com",
@@ -30,16 +33,18 @@
             appId: "1:968520920745:web:73411f874a1b9f1ce343b8",
             measurementId: "G-RP81FY5G3D"
         };
+
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const database = firebase.database();
 
+        // Function to handle Google login
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
-                // Restrict to uri.edu domain
-                'hd': 'uri.edu'
+                'hd': 'uri.edu', // Restrict to URI.edu domain
+                'prompt': 'select_account'
             });
 
             try {
@@ -50,59 +55,57 @@
                 if (emailDomain !== 'uri.edu') {
                     await auth.signOut();
                     alert('Only URI.edu emails are allowed.');
-                    clearCookies();
                 } else {
                     await saveUserData(user);
-                    window.location.href = "/classes";
+                    window.location.href = "/classes"; // Redirect to classes page on successful login
                 }
             } catch (error) {
                 console.error("Sign in error:", error);
-                throw new Error(error.message);
+                alert("Sign in failed. Please try again.");
             }
         }
 
+        // Function to save user data to Firebase
         async function saveUserData(user) {
             const userRef = database.ref('users/' + user.uid);
             await userRef.set({
                 firstName: user.displayName.split(' ')[0],
                 lastName: user.displayName.split(' ').slice(1).join(' '),
-                email: user.email
+                email: user.email,
+                instructor: false // Default role set to false
             });
         }
 
+        // Function to get current user data
+        function getUserData() {
+            const user = firebase.auth().currentUser;
+            if (user) {
+                return {
+                    displayName: user.displayName,
+                    email: user.email,
+                    instructor: user.instructor
+                };
+            }
+            return null;
+        }
+
+        // Function to handle user logout
         async function logout() {
             try {
                 await auth.signOut();
                 console.log("User signed out.");
-                clearCookies();
             } catch (error) {
                 console.error("Sign out error:", error);
-                throw new Error(error.message);
+                alert("Sign out failed. Please try again.");
             }
         }
 
-        function clearCookies() {
-            var cookies = document.cookie.split(";");
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i];
-                var eqPos = cookie.indexOf("=");
-                var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-            }
-            window.location.href = '/'; // Redirect to the desired page after clearing cookies
-        }
-
-        function onFirebaseAuthStateChanged(callback) {
-            return auth.onAuthStateChanged(user => {
-                DotNet.invokeMethodAsync('RollCall', 'OnAuthStateChanged', !!user);
-            });
-        }
-
+        // Function to check if user is authenticated
         function isUserAuthenticated() {
             return !!auth.currentUser;
         }
 
-        // JavaScript function to toggle collapse
+        // Function to toggle collapse for elements with the specified class name
         function toggleCollapse(className) {
             const element = document.getElementById(className);
             if (element) {
@@ -110,18 +113,17 @@
             }
         }
 
-        // Expose functions to the global scope
+        // Expose functions to the global scope for accessibility
         window.loginWithGoogle = loginWithGoogle;
         window.logout = logout;
-        window.onFirebaseAuthStateChanged = onFirebaseAuthStateChanged;
         window.isUserAuthenticated = isUserAuthenticated;
         window.saveUserData = saveUserData;
-        window.toggleCollapse = toggleCollapse;
+        window.getUserData = getUserData;
     </script>
 </head>
-
 <body>
     <div id="app">
+        <!-- Loading spinner while the app is initializing -->
         <svg class="loading-progress">
             <circle r="40%" cx="50%" cy="50%" />
             <circle r="40%" cx="50%" cy="50%" />
@@ -134,7 +136,7 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+    <!-- Blazor WebAssembly JavaScript -->
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
-
 </html>

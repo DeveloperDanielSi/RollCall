@@ -2,6 +2,8 @@
 @using System.ComponentModel.DataAnnotations
 @using Firebase.Database
 @using Firebase.Database.Query
+@using System.Text.Json
+@using System.Text
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -58,6 +60,12 @@
         <InputText @bind-Value="classModel.ClassEndTime" type="time" />
     </div>
 
+    <!-- Class End Date input field -->
+    <div>
+        <label>Class End Date:</label>
+        <InputDate @bind-Value="classModel.ClassEndDate" />
+    </div>
+
     <!-- Late Minutes input field -->
     <div>
         <label>How many minutes is considered late?</label>
@@ -94,7 +102,13 @@
 }
 
 @code {
-    // Model for class creation
+    public class UserData
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    private string creatorEmail = string.Empty;
+
     public class ClassModel
     {
         [Required]
@@ -109,6 +123,8 @@
         [Required]
         public string ClassEndTime { get; set; } = string.Empty;
         [Required]
+        public DateTime ClassEndDate { get; set; } = DateTime.Now;
+        [Required]
         public int LateMinutes { get; set; } = 0;
         [Required]
         public int AbsentMinutes { get; set; } = 0;
@@ -118,11 +134,54 @@
         public int CheckInDistance { get; set; } = 0;
     }
 
-    // Instance of the class model
+    public class ClassData
+    {
+        public string ClassName { get; set; } = string.Empty;
+        public List<string> SelectedDays { get; set; } = new List<string>();
+        public string ClassStartTime { get; set; } = string.Empty;
+        public string ClassEndTime { get; set; } = string.Empty;
+        public string ClassEndDate { get; set; } = string.Empty;
+        public int LateMinutes { get; set; } = 0;
+        public int AbsentMinutes { get; set; } = 0;
+        public string Location { get; set; } = string.Empty;
+        public int CheckInDistance { get; set; } = 0;
+        public string CreatorEmail { get; set; } = string.Empty;
+    }
+
     private ClassModel classModel = new ClassModel();
     private string errorMessage = string.Empty;
 
-    // Handle form submission
+    protected override async Task OnInitializedAsync()
+    {
+        var userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+        if (userData != null)
+        {
+            creatorEmail = userData.Email;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string> CallGoogleAppsScript(string className, string creatorEmail, List<string> selectedDays, DateTime classEndDate)
+    {
+        var scriptUrl = "https://script.google.com/macros/s/1Tiq3AfPxKIsq48FjUhLuJ3IuN-cC4Igb1-nDrI5bdOgws-1VUZ-V-5fC/exec";
+        var payload = new
+        {
+            className,
+            creatorEmail,
+            selectedDays,
+            classEndDate = classEndDate.ToString("yyyy-MM-dd")
+        };
+
+        var jsonPayload = JsonSerializer.Serialize(payload);
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        using var httpClient = new HttpClient();
+        var response = await httpClient.PostAsync(scriptUrl, content);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        return responseBody;
+    }
+
     private async Task HandleValidSubmit()
     {
         try
@@ -142,7 +201,7 @@
             var endTime = TimeSpan.Parse(classModel.ClassEndTime);
 
             var firebaseClient = new FirebaseClient(databaseUrl);
-            var uid = Guid.NewGuid().ToString(); // Generate a unique ID for the class
+            var uid = Guid.NewGuid().ToString();
 
             var selectedDays = new List<string>();
             if (classModel.Monday) selectedDays.Add("Monday");
@@ -151,17 +210,19 @@
             if (classModel.Thursday) selectedDays.Add("Thursday");
             if (classModel.Friday) selectedDays.Add("Friday");
 
-            var classData = new
-            {
-                classModel.ClassName,
-                SelectedDays = selectedDays,
-                ClassStartTime = startTime.ToString(@"hh\:mm"),
-                ClassEndTime = endTime.ToString(@"hh\:mm"),
-                classModel.LateMinutes,
-                classModel.AbsentMinutes,
-                classModel.Location,
-                classModel.CheckInDistance
-            };
+            var classData = new ClassData
+                {
+                    ClassName = classModel.ClassName,
+                    SelectedDays = selectedDays,
+                    ClassStartTime = startTime.ToString(@"hh\:mm"),
+                    ClassEndTime = endTime.ToString(@"hh\:mm"),
+                    ClassEndDate = classModel.ClassEndDate.ToString("yyyy-MM-dd"),
+                    LateMinutes = classModel.LateMinutes,
+                    AbsentMinutes = classModel.AbsentMinutes,
+                    Location = classModel.Location,
+                    CheckInDistance = classModel.CheckInDistance,
+                    CreatorEmail = creatorEmail
+                };
 
             // Save class data to Firebase
             await firebaseClient
@@ -169,8 +230,23 @@
                 .Child(uid)
                 .PutAsync(classData);
 
+            // Call Google Apps Script to create and populate the sheet
+            var sheetUrl = await CallGoogleAppsScript(
+                classModel.ClassName,
+                creatorEmail,
+                selectedDays,
+                classModel.ClassEndDate
+            );
+
+            // Optionally, save the Google Sheet URL to Firebase
+            await firebaseClient
+                .Child("classes")
+                .Child(uid)
+                .Child("sheetUrl")
+                .PutAsync(sheetUrl);
+
             Console.WriteLine("Class successfully created and pushed to Firebase.");
-            Navigation.NavigateTo("/classes"); // Redirect to classes page
+            Navigation.NavigateTo("/classes");
         }
         catch (Exception ex)
         {
@@ -178,10 +254,8 @@
         }
     }
 
-    // Set location for the class
     private void SetLocation()
     {
-        // Handle setting location logic
         Console.WriteLine("Location set.");
     }
 }

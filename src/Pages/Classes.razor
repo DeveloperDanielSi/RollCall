@@ -4,7 +4,8 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
-<!-- Page title -->
+<PageTitle>Classes</PageTitle>
+
 <h3>Classes</h3>
 
 <!-- Welcome message -->
@@ -32,21 +33,23 @@ else
         {
             <!-- Sanitize class name to use as collapse id -->
             <li class="list-group-item">
-            @{
-                var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
-            }
-            <!-- Link to toggle class details -->
-            <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
-                @classItem.ClassName
-            </a>
-            <!-- Check-in button -->
+                @{
+                    var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+                }
+                <!-- Link to toggle class details -->
+                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                    @classItem.ClassName
+                </a>
+                <!-- Check-in button -->
                 <button @onclick="RedirectToCheckin" class="btn btn-primary">Check in</button>
-            <!-- Collapsible div for class details -->
+
+                <!-- Collapsible div for class details -->
                 <div class="collapse" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
                         <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
                         <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
                         <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
+                        <p><strong>End Date:</strong> @classItem.ClassEndDate.ToString("yyyy-MM-dd")</p>
                         <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
                         <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
                         <p><strong>Location:</strong> @classItem.Location</p>
@@ -116,13 +119,14 @@ else
     // Class model to store class details
     public class ClassModel
     {
-        public string ClassName { get; set; }
-        public List<string> SelectedDays { get; set; }
-        public string ClassStartTime { get; set; }
-        public string ClassEndTime { get; set; }
-        public int LateMinutes { get; set; }
-        public int AbsentMinutes { get; set; }
-        public string Location { get; set; }
-        public int CheckInDistance { get; set; }
-    }
+        public string ClassName { get; set; } = string.Empty;
+        public List<string> SelectedDays { get; set; } = new List<string>();
+        public string ClassStartTime { get; set; } = string.Empty;
+        public string ClassEndTime { get; set; } = string.Empty;
+        public DateTime ClassEndDate { get; set; } = DateTime.Now;
+        public int LateMinutes { get; set; } = 0;
+        public int AbsentMinutes { get; set; } = 0;
+        public string Location { get; set; } = string.Empty;
+        public int CheckInDistance { get; set; } = 0;
+    } 
 }
