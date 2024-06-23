@@ -39,6 +39,8 @@ else
             <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
                 @classItem.ClassName
             </a>
+            <!-- Check-in button -->
+                <button @onclick="RedirectToCheckin" class="btn btn-primary">Check in</button>
             <!-- Collapsible div for class details -->
                 <div class="collapse" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
@@ -70,6 +72,12 @@ else
     private void RedirectToAddClass()
     {
         Navigation.NavigateTo("/classes/create");
+    }
+
+    // Redirect to the checkin page
+    private void RedirectToCheckin()
+    {
+        Navigation.NavigateTo("/checkin");
     }
 
     // Load classes from Firebase database
