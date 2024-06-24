@@ -123,6 +123,8 @@
         [Required]
         public string ClassEndTime { get; set; } = string.Empty;
         [Required]
+        public DateTime ClassStartDate { get; set; } = DateTime.Now;
+        [Required]
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
         [Required]
         public int LateMinutes { get; set; } = 0;
@@ -140,6 +142,7 @@
         public List<string> SelectedDays { get; set; } = new List<string>();
         public string ClassStartTime { get; set; } = string.Empty;
         public string ClassEndTime { get; set; } = string.Empty;
+        public string ClassStartDate { get; set; } = string.Empty;
         public string ClassEndDate { get; set; } = string.Empty;
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
@@ -216,6 +219,7 @@
                     SelectedDays = selectedDays,
                     ClassStartTime = startTime.ToString(@"hh\:mm"),
                     ClassEndTime = endTime.ToString(@"hh\:mm"),
+                    ClassStartDate = classModel.ClassStartDate.ToString("yyyy-MM-dd"),
                     ClassEndDate = classModel.ClassEndDate.ToString("yyyy-MM-dd"),
                     LateMinutes = classModel.LateMinutes,
                     AbsentMinutes = classModel.AbsentMinutes,
