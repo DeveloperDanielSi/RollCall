@@ -75,14 +75,29 @@
          */
         async function saveUserData(user) {
             const userRef = database.ref('users/' + user.uid);
-            await userRef.set({
-                firstName: user.displayName.split(' ')[0],
-                lastName: user.displayName.split(' ').slice(1).join(' '),
-                email: user.email,
-                instructor: false // Default role set to false
-            });
-        }
+            const snapshot = await userRef.once('value');
 
+            // Check if user data exists
+            if (snapshot.exists()) {
+                const existingData = snapshot.val();
+
+                // Update only missing fields without modifying existing instructor value
+                await userRef.update({
+                    firstName: existingData.firstName || user.displayName.split(' ')[0],
+                    lastName: existingData.lastName || user.displayName.split(' ').slice(1).join(' '),
+                    email: existingData.email || user.email
+                    // Do not update the instructor field
+                });
+            } else {
+                // Set new user data
+                await userRef.set({
+                    firstName: user.displayName.split(' ')[0],
+                    lastName: user.displayName.split(' ').slice(1).join(' '),
+                    email: user.email,
+                    instructor: false // Default role set to false
+                });
+            }
+        }
         /**
          * Function to get current user data.
          * @returns {object|null} - The user data object or null if not authenticated.

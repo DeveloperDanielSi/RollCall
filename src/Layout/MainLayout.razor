@@ -9,9 +9,10 @@
 
     <!-- Main content area -->
     <main>
-        <!-- Top row with a link to the GitHub repository -->
+        <!-- Top row with the current date and time in EST and a link to the GitHub repository -->
         <div class="top-row px-4">
-            <a href="https://github.com/TheGreatestDaniel/RollCall" target="_blank">About</a>
+            <span class="current-time">@GetCurrentEstTime()</span>
+            <a href="https://github.com/TheGreatestDaniel/RollCall" target="_blank" class="ml-auto">About</a>
         </div>
 
         <!-- Article section where the main content of the page will be displayed -->
@@ -20,3 +21,23 @@
         </article>
     </main>
 </div>
+
+@code {
+    private string GetCurrentEstTime()
+    {
+        try
+        {
+            var nyZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+            var estTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, nyZone);
+            return estTime.ToString("f", System.Globalization.CultureInfo.CreateSpecificCulture("en-US"));
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return "Time zone not found";
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return "Invalid time zone";
+        }
+    }
+}

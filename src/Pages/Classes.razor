@@ -49,6 +49,7 @@ else
                         <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
                         <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
                         <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
+                        <p><strong>Start Date:</strong> @classItem.ClassStartDate.ToString("yyyy-MM-dd")</p>
                         <p><strong>End Date:</strong> @classItem.ClassEndDate.ToString("yyyy-MM-dd")</p>
                         <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
                         <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
@@ -123,6 +124,7 @@ else
         public List<string> SelectedDays { get; set; } = new List<string>();
         public string ClassStartTime { get; set; } = string.Empty;
         public string ClassEndTime { get; set; } = string.Empty;
+        public DateTime ClassStartDate { get; set; } = DateTime.Now;
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
