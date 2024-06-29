@@ -1,5 +1,4 @@
 ﻿@page "/settings"
-@attribute [Authorize]
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
@@ -10,17 +9,7 @@
 <div>
     <p>Name: @userName</p>
     <p>Email: @userEmail</p>
-</div>
-
-<!-- Theme Settings Section -->
-<h3>Theme Settings</h3>
-<div>
-    <label>
-        <input type="radio" name="theme" value="light" @onclick="SetLightTheme" /> Light Mode
-    </label>
-    <label>
-        <input type="radio" name="theme" value="dark" @onclick="SetDarkTheme" /> Dark Mode
-    </label>
+    <p>Role: @userRole</p>
 </div>
 
 <!-- Logout Button -->
@@ -30,6 +19,7 @@
     // Fields to store user data
     private string userName = string.Empty;
     private string userEmail = string.Empty;
+    private string userRole = string.Empty;
 
     // On component initialization, fetch user data from JavaScript
     protected override async Task OnInitializedAsync()
@@ -39,6 +29,7 @@
         {
             userName = userData.DisplayName;
             userEmail = userData.Email;
+            userRole = userData.Role;
             StateHasChanged(); // Notify the component to re-render
         }
     }
@@ -48,6 +39,7 @@
     {
         userName = userData.DisplayName;
         userEmail = userData.Email;
+        userRole = userData.Role;
         await InvokeAsync(StateHasChanged); // Notify the component to re-render
     }
 
@@ -58,30 +50,11 @@
         Navigation.NavigateTo("/"); // Navigate to the home page
     }
 
-    // Method to set the light theme
-    private void SetLightTheme()
-    {
-        SetTheme("light");
-    }
-
-    // Method to set the dark theme
-    private void SetDarkTheme()
-    {
-        SetTheme("dark");
-    }
-
-    // Helper method to set the theme
-    private void SetTheme(string theme)
-    {
-        // Logic to set the theme
-        // You might want to store the theme setting in local storage or a database
-        Console.WriteLine($"Theme set to: {theme}");
-    }
-
     // Class to represent user data
     public class UserData
     {
         public string DisplayName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
     }
 }

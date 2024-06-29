@@ -1,5 +1,5 @@
 ﻿@page "/classes"
-@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -53,8 +53,6 @@ else
                         <p><strong>End Date:</strong> @classItem.ClassEndDate.ToString("yyyy-MM-dd")</p>
                         <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
                         <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
-                        <p><strong>Location:</strong> @classItem.Location</p>
-                        <p><strong>Check-In Distance:</strong> @classItem.CheckInDistance feet</p>
                     </div>
                 </div>
             </li>
@@ -128,7 +126,5 @@ else
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
-        public string Location { get; set; } = string.Empty;
-        public int CheckInDistance { get; set; } = 0;
-    } 
+    }
 }
