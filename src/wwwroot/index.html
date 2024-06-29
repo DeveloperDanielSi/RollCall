@@ -20,6 +20,7 @@
     <!-- jQuery and Bootstrap JavaScript -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="_content/Microsoft.AspNetCore.Components.WebAssembly.Authentication/AuthenticationService.js"></script>
 
     <script>
         // Firebase configuration object
@@ -46,7 +47,7 @@
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
-                'hd': 'uri.edu', // Restrict to URI.edu domain
+                // 'hd': 'uri.edu', // Restrict to URI.edu domain
                 'prompt': 'select_account'
             });
 
@@ -55,14 +56,17 @@
                 const user = result.user;
                 const emailDomain = user.email.split('@')[1];
 
+                await saveUserData(user);
+                window.location.href = "/classes"; // Redirect to classes page on successful login
+
                 // Check if the email domain is uri.edu
-                if (emailDomain !== 'uri.edu') {
-                    await auth.signOut();
-                    alert('Only URI.edu emails are allowed.');
-                } else {
-                    await saveUserData(user);
-                    window.location.href = "/classes"; // Redirect to classes page on successful login
-                }
+                //if (emailDomain !== 'uri.edu') {
+                //    await auth.signOut();
+                //    alert('Only URI.edu emails are allowed.');
+                //} else {
+                //    await saveUserData(user);
+                //    window.location.href = "/classes"; // Redirect to classes page on successful login
+                //}
             } catch (error) {
                 console.error("Sign in error:", error);
                 alert("Sign in failed. Please try again.");
@@ -81,12 +85,12 @@
             if (snapshot.exists()) {
                 const existingData = snapshot.val();
 
-                // Update only missing fields without modifying existing instructor value
+                // Update only missing fields without modifying existing role value
                 await userRef.update({
                     firstName: existingData.firstName || user.displayName.split(' ')[0],
                     lastName: existingData.lastName || user.displayName.split(' ').slice(1).join(' '),
                     email: existingData.email || user.email
-                    // Do not update the instructor field
+                    // Do not update the role field
                 });
             } else {
                 // Set new user data
@@ -94,7 +98,7 @@
                     firstName: user.displayName.split(' ')[0],
                     lastName: user.displayName.split(' ').slice(1).join(' '),
                     email: user.email,
-                    instructor: false // Default role set to false
+                    role: "Student" // Default role set to Student
                 });
             }
         }
@@ -108,7 +112,7 @@
                 return {
                     displayName: user.displayName,
                     email: user.email,
-                    instructor: user.instructor
+                    role: user.role
                 };
             }
             return null;

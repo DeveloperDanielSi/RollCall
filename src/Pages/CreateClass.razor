@@ -60,6 +60,12 @@
         <InputText @bind-Value="classModel.ClassEndTime" type="time" />
     </div>
 
+    <!-- Class Start Date input field -->
+    <div>
+        <label>Class Start Date:</label>
+        <InputDate @bind-Value="classModel.ClassStartDate" />
+    </div>
+
     <!-- Class End Date input field -->
     <div>
         <label>Class End Date:</label>
@@ -76,19 +82,6 @@
     <div>
         <label>How many minutes is considered absent?</label>
         <InputNumber @bind-Value="classModel.AbsentMinutes" />
-    </div>
-
-    <!-- Location input field and button -->
-    <div>
-        <label>Set Location:</label>
-        <InputText @bind-Value="classModel.Location" />
-        <button type="button" @onclick="SetLocation">Set Location</button>
-    </div>
-
-    <!-- Check-In Distance input field -->
-    <div>
-        <label>In feet how far should students be able to check in from where you are?</label>
-        <InputNumber @bind-Value="classModel.CheckInDistance" />
     </div>
 
     <!-- Submit button -->
@@ -113,11 +106,6 @@
     {
         [Required]
         public string ClassName { get; set; } = string.Empty;
-        public bool Monday { get; set; }
-        public bool Tuesday { get; set; }
-        public bool Wednesday { get; set; }
-        public bool Thursday { get; set; }
-        public bool Friday { get; set; }
         [Required]
         public string ClassStartTime { get; set; } = string.Empty;
         [Required]
@@ -130,10 +118,13 @@
         public int LateMinutes { get; set; } = 0;
         [Required]
         public int AbsentMinutes { get; set; } = 0;
-        [Required]
-        public string Location { get; set; } = string.Empty;
-        [Required]
-        public int CheckInDistance { get; set; } = 0;
+
+        // Days of the week checkboxes
+        public bool Monday { get; set; }
+        public bool Tuesday { get; set; }
+        public bool Wednesday { get; set; }
+        public bool Thursday { get; set; }
+        public bool Friday { get; set; }
     }
 
     public class ClassData
@@ -142,12 +133,10 @@
         public List<string> SelectedDays { get; set; } = new List<string>();
         public string ClassStartTime { get; set; } = string.Empty;
         public string ClassEndTime { get; set; } = string.Empty;
-        public string ClassStartDate { get; set; } = string.Empty;
-        public string ClassEndDate { get; set; } = string.Empty;
+        public DateTime ClassStartDate { get; set; } = DateTime.Now;
+        public DateTime ClassEndDate { get; set; } = DateTime.Now;
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
-        public string Location { get; set; } = string.Empty;
-        public int CheckInDistance { get; set; } = 0;
         public string CreatorEmail { get; set; } = string.Empty;
     }
 
@@ -162,27 +151,6 @@
             creatorEmail = userData.Email;
             StateHasChanged();
         }
-    }
-
-    private async Task<string> CallGoogleAppsScript(string className, string creatorEmail, List<string> selectedDays, DateTime classEndDate)
-    {
-        var scriptUrl = "https://script.google.com/macros/s/1Tiq3AfPxKIsq48FjUhLuJ3IuN-cC4Igb1-nDrI5bdOgws-1VUZ-V-5fC/exec";
-        var payload = new
-        {
-            className,
-            creatorEmail,
-            selectedDays,
-            classEndDate = classEndDate.ToString("yyyy-MM-dd")
-        };
-
-        var jsonPayload = JsonSerializer.Serialize(payload);
-        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-        using var httpClient = new HttpClient();
-        var response = await httpClient.PostAsync(scriptUrl, content);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        return responseBody;
     }
 
     private async Task HandleValidSubmit()
@@ -219,35 +187,28 @@
                     SelectedDays = selectedDays,
                     ClassStartTime = startTime.ToString(@"hh\:mm"),
                     ClassEndTime = endTime.ToString(@"hh\:mm"),
-                    ClassStartDate = classModel.ClassStartDate.ToString("yyyy-MM-dd"),
-                    ClassEndDate = classModel.ClassEndDate.ToString("yyyy-MM-dd"),
+                    ClassStartDate = classModel.ClassStartDate,
+                    ClassEndDate = classModel.ClassEndDate,
                     LateMinutes = classModel.LateMinutes,
                     AbsentMinutes = classModel.AbsentMinutes,
-                    Location = classModel.Location,
-                    CheckInDistance = classModel.CheckInDistance,
                     CreatorEmail = creatorEmail
                 };
+
+            // Generate CSV data
+            var csvData = GenerateCSV(classData);
 
             // Save class data to Firebase
             await firebaseClient
                 .Child("classes")
                 .Child(uid)
-                .PutAsync(classData);
+                .PutAsync(classData); 
 
-            // Call Google Apps Script to create and populate the sheet
-            var sheetUrl = await CallGoogleAppsScript(
-                classModel.ClassName,
-                creatorEmail,
-                selectedDays,
-                classModel.ClassEndDate
-            );
-
-            // Optionally, save the Google Sheet URL to Firebase
+            // Store CSV data in Firebase RTDB
             await firebaseClient
                 .Child("classes")
                 .Child(uid)
-                .Child("sheetUrl")
-                .PutAsync(sheetUrl);
+                .Child("classData.csv")
+                .PutAsync(csvData);
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
             Navigation.NavigateTo("/classes");
@@ -258,8 +219,53 @@
         }
     }
 
-    private void SetLocation()
+    private string GenerateCSV(ClassData classData)
     {
-        Console.WriteLine("Location set.");
+        DateTime startDate = classData.ClassStartDate;
+        DateTime endDate = classData.ClassEndDate;
+        List<string> selectedDays = classData.SelectedDays;
+
+        StringBuilder csvBuilder = new StringBuilder();
+
+        // Build CSV header
+        csvBuilder.AppendLine("Class Name,Class Start Time,Class End Time,");
+
+        // Initialize currentDate for iterating through days
+        DateTime currentDate = startDate;
+
+        // Iterate through each day between start and end dates
+        while (currentDate <= endDate)
+        {
+            // Check if the current day is one of the selected days
+            if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
+            {
+                csvBuilder.Append($"{currentDate:yyyy-MM-dd},");
+            }
+
+            // Move to the next day
+            currentDate = currentDate.AddDays(1);
+        }
+        csvBuilder.AppendLine(); // New line for data rows
+
+        // Build CSV data row
+        csvBuilder.Append($"{classData.ClassName},{classData.ClassStartTime},{classData.ClassEndTime},");
+
+        // Reset currentDate to startDate for data rows
+        currentDate = startDate;
+        while (currentDate <= endDate)
+        {
+            // Check if the current day is one of the selected days
+            if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
+            {
+                // Add your specific data for each day here if needed
+                csvBuilder.Append(",");
+            }
+
+            // Move to the next day
+            currentDate = currentDate.AddDays(1);
+        }
+        csvBuilder.AppendLine(); // End of data row
+
+        return csvBuilder.ToString();
     }
 }

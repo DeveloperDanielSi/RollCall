@@ -39,7 +39,10 @@
         const auth = firebase.auth();
         const database = firebase.database();
 
-        // Function to handle Google login
+        /**
+         * Function to handle Google login.
+         * Restricts login to users with URI.edu domain.
+         */
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
@@ -52,6 +55,7 @@
                 const user = result.user;
                 const emailDomain = user.email.split('@')[1];
 
+                // Check if the email domain is uri.edu
                 if (emailDomain !== 'uri.edu') {
                     await auth.signOut();
                     alert('Only URI.edu emails are allowed.');
@@ -65,18 +69,39 @@
             }
         }
 
-        // Function to save user data to Firebase
+        /**
+         * Function to save user data to Firebase.
+         * @param {object} user - The authenticated user object.
+         */
         async function saveUserData(user) {
             const userRef = database.ref('users/' + user.uid);
-            await userRef.set({
-                firstName: user.displayName.split(' ')[0],
-                lastName: user.displayName.split(' ').slice(1).join(' '),
-                email: user.email,
-                instructor: false // Default role set to false
-            });
-        }
+            const snapshot = await userRef.once('value');
 
-        // Function to get current user data
+            // Check if user data exists
+            if (snapshot.exists()) {
+                const existingData = snapshot.val();
+
+                // Update only missing fields without modifying existing instructor value
+                await userRef.update({
+                    firstName: existingData.firstName || user.displayName.split(' ')[0],
+                    lastName: existingData.lastName || user.displayName.split(' ').slice(1).join(' '),
+                    email: existingData.email || user.email
+                    // Do not update the instructor field
+                });
+            } else {
+                // Set new user data
+                await userRef.set({
+                    firstName: user.displayName.split(' ')[0],
+                    lastName: user.displayName.split(' ').slice(1).join(' '),
+                    email: user.email,
+                    instructor: false // Default role set to false
+                });
+            }
+        }
+        /**
+         * Function to get current user data.
+         * @returns {object|null} - The user data object or null if not authenticated.
+         */
         function getUserData() {
             const user = firebase.auth().currentUser;
             if (user) {
@@ -89,7 +114,9 @@
             return null;
         }
 
-        // Function to handle user logout
+        /**
+         * Function to handle user logout.
+         */
         async function logout() {
             try {
                 await auth.signOut();
@@ -100,12 +127,18 @@
             }
         }
 
-        // Function to check if user is authenticated
+        /**
+         * Function to check if the user is authenticated.
+         * @returns {boolean} - True if the user is authenticated, otherwise false.
+         */
         function isUserAuthenticated() {
             return !!auth.currentUser;
         }
 
-        // Function to toggle collapse for elements with the specified class name
+        /**
+         * Function to toggle collapse for elements with the specified class name.
+         * @param {string} className - The class name of the element to toggle.
+         */
         function toggleCollapse(className) {
             const element = document.getElementById(className);
             if (element) {
