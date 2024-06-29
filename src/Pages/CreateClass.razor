@@ -194,21 +194,24 @@
                     CreatorEmail = creatorEmail
                 };
 
-            // Generate CSV data
+            // Generate CSV data (list of dates for the class under the "Dates" student)
             var csvData = GenerateCSV(classData);
+            // Serialize the string into JSON for firebase
+            var member = System.Text.Json.JsonSerializer.Serialize<string>(csvData);
 
             // Save class data to Firebase
             await firebaseClient
                 .Child("classes")
                 .Child(uid)
-                .PutAsync(classData); 
-
+                .PutAsync(classData);
+ 
             // Store CSV data in Firebase RTDB
             await firebaseClient
                 .Child("classes")
                 .Child(uid)
-                .Child("classData.csv")
-                .PutAsync(csvData);
+                .Child("Students")
+                .Child("Dates")
+                .PutAsync(member);
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
             Navigation.NavigateTo("/classes");
@@ -227,9 +230,6 @@
 
         StringBuilder csvBuilder = new StringBuilder();
 
-        // Build CSV header
-        csvBuilder.AppendLine("Class Name,Class Start Time,Class End Time,");
-
         // Initialize currentDate for iterating through days
         DateTime currentDate = startDate;
 
@@ -239,33 +239,17 @@
             // Check if the current day is one of the selected days
             if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
             {
-                csvBuilder.Append($"{currentDate:yyyy-MM-dd},");
-            }
-
-            // Move to the next day
-            currentDate = currentDate.AddDays(1);
-        }
-        csvBuilder.AppendLine(); // New line for data rows
-
-        // Build CSV data row
-        csvBuilder.Append($"{classData.ClassName},{classData.ClassStartTime},{classData.ClassEndTime},");
-
-        // Reset currentDate to startDate for data rows
-        currentDate = startDate;
-        while (currentDate <= endDate)
-        {
-            // Check if the current day is one of the selected days
-            if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
-            {
-                // Add your specific data for each day here if needed
+                csvBuilder.Append(currentDate.Year);
+                csvBuilder.Append("-");
+                csvBuilder.Append(currentDate.Month);
+                csvBuilder.Append("-");
+                csvBuilder.Append(currentDate.Day);
                 csvBuilder.Append(",");
             }
 
             // Move to the next day
             currentDate = currentDate.AddDays(1);
         }
-        csvBuilder.AppendLine(); // End of data row
-
         return csvBuilder.ToString();
     }
 }
