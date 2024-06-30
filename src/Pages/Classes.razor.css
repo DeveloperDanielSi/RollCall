@@ -1,0 +1,20 @@
+﻿.class-item-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.class-item-link {
+    margin-right: auto; /* Ensures the link stays on the left */
+}
+
+.class-item-buttons {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+}
+
+.class-item-details {
+    width: 100%;
+    margin-top: 1rem;
+}
