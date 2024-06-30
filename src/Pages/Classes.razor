@@ -1,6 +1,8 @@
 ﻿@page "/classes"
 @using Firebase.Database
 @using Firebase.Database.Query
+@using System.Text.Json
+@using System.Text
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JSRuntime
@@ -165,12 +167,30 @@
         }
     }
 
+    // Refreshes the class list after joining a class but doesn't populate classes already loaded
+    private async Task RefreshClassList()
+    {
+        try
+        {
+            // Clear existing classes
+            classes.Clear();
+
+            // Reload classes based on user type
+            await LoadClasses();
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if refreshing class list fails
+            errorMessage = $"Error refreshing class list: {ex.Message}";
+        }
+    }
+
     // Join a class using an invite code
     private async Task JoinClass()
     {
         try
         {
-            string[] initializeStudent = ["P"];
+            var initializeStudent = JsonSerializer.Serialize<string>("");
 
             // Fetch invite details using the provided invite code
             var invite = await FirebaseClient
@@ -200,9 +220,17 @@
                     .Child(userData.DisplayName)
                     .PutAsync(initializeStudent);
 
+                // Add student's UID to the class's enrolled students list
+                await FirebaseClient
+                    .Child("classes")
+                    .Child(classId)
+                    .Child("StudentsEnrolled")
+                    .Child(userData.UID)
+                    .PutAsync(initializeStudent);
+
                 // Provide success message and reload classes
                 successMessage = "Class joined successfully!";
-                await LoadClasses();
+                await RefreshClassList();
             }
             else
             {
@@ -214,6 +242,52 @@
         {
             // Handle errors if joining class fails
             errorMessage = $"Error joining class: {ex.Message}";
+        }
+    }
+
+    // Delete a class, with a prompt verifying if that actually want to delete {ClassName}, it will also remove the class from the student's list of enrolled classes
+    private async Task DeleteClass(string classId, string className)
+    {
+        try
+        {
+            // Fetch all user UIDs from Firebase
+            var userUids = await FirebaseClient
+                .Child("classes")
+                .Child(classId)
+                .Child("StudentsEnrolled")
+                .OnceAsync<List<string>>();
+
+            // Prompt user to confirm class deletion
+            var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete {className}?");
+
+            if (confirmDelete)
+            {
+                // Remove class from Firebase Realtime Database
+                await FirebaseClient
+                    .Child("classes")
+                    .Child(classId)
+                    .DeleteAsync();
+
+                // Remove class from each user's list of enrolled classes
+                foreach (var user in userUids)
+                {
+                    await FirebaseClient
+                        .Child("users")
+                        .Child(user.Key)
+                        .Child("classes")
+                        .Child(classId)
+                        .DeleteAsync();
+                }
+
+                // Provide success message and reload classes
+                successMessage = "Class deleted successfully!";
+                await LoadClasses();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if class deletion fails
+            errorMessage = $"Error deleting class: {ex.Message}";
         }
     }
 
@@ -267,7 +341,7 @@
         <button class="btn btn-primary" @onclick="RedirectToCreateClass">Create a Class</button>
     </div>
 
-    <ul>
+    <ul class="list-group">
         @foreach (var classItem in classes)
         {
             <!-- Sanitize class name to use as collapse id -->
@@ -276,16 +350,23 @@
                     var sanitizedClassName = SanitizeClassName(classItem.ClassName);
                 }
 
-                <!-- Link to toggle class details -->
-                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
-                    @classItem.ClassName
-                </a>
+                <div class="class-item-container">
+                    <!-- Link to toggle class details -->
+                    <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                        @classItem.ClassName
+                    </a>
 
-                <!-- Button to generate invite code for the class -->
-                <button class="btn btn-primary" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
+                    <div class="class-item-buttons">
+                        <!-- Button to generate invite code for the class -->
+                        <button class="btn btn-primary" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
+
+                        <!-- Button to delete the class -->
+                        <button class="btn btn-danger" @onclick="() => DeleteClass(classItem.ClassId, classItem.ClassName)">Delete</button>
+                    </div>
+                </div>
 
                 <!-- Collapsible div for class details -->
-                <div class="collapse" id="collapse-@sanitizedClassName">
+                <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
                         <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
                         <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
@@ -312,7 +393,7 @@
         <button class="btn btn-primary" @onclick="JoinClass">Join Class</button>
     </div>
 
-    <ul>
+    <ul class="list-group">
         @foreach (var classItem in classes)
         {
             <!-- Sanitize class name to use as collapse id -->
@@ -321,27 +402,27 @@
                     var sanitizedClassName = SanitizeClassName(classItem.ClassName);
                 }
 
-                <!-- Link to toggle class details -->
-                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
-                    @classItem.ClassName
-                </a>
+                <div class="class-item-container">
+                    <!-- Link to toggle class details -->
+                    <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                        @classItem.ClassName
+                    </a>
 
-                <!-- Check-in button only shown to students -->
-                @if (!isInstructor)
-                {
-                    <button class="btn btn-primary" @onclick="RedirectToCheckin">Check in</button>
-                }
+                    <!-- Check-in button only shown to students -->
+                    @if (!isInstructor)
+                    {
+                        <button class="btn btn-primary class-item-button" @onclick="RedirectToCheckin">Check in</button>
+                    }
+                </div>
 
                 <!-- Collapsible div for class details -->
-                <div class="collapse" id="collapse-@sanitizedClassName">
+                <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
                     <div class="card card-body">
                         <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
                         <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
                         <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
                         <p><strong>Start Date:</strong> @classItem.ClassStartDate.ToString("yyyy-MM-dd")</p>
                         <p><strong>End Date:</strong> @classItem.ClassEndDate.ToString("yyyy-MM-dd")</p>
-                        <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
-                        <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
                     </div>
                 </div>
             </li>

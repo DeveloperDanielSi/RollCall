@@ -41,7 +41,5 @@ builder.Services.AddOidcAuthentication(options =>
 //    Policy.requireRole(RoleScopes.YOURADMINROLE));
 //});
 
-
-
 // Build and run the app
 await builder.Build().RunAsync();
