@@ -1,47 +1,288 @@
 ﻿@page "/classes"
+@using Firebase.Database
+@using Firebase.Database.Query
+@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
+@code {
+    // Declare FirebaseClient object to interact with Firebase Realtime Database
+    private FirebaseClient FirebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
+
+    // User data
+    private bool isInstructor;
+    private UserData userData = new UserData();
+    private List<ClassData> classes = new List<ClassData>();
+    private List<GeneratedInvite> generatedInvites = new List<GeneratedInvite>();
+
+    // Invite code fields
+    private string inviteCode = string.Empty;
+    private string joinClassCode = string.Empty;
+
+    // Messages fields
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    // User data model
+    public class UserData
+    {
+        public string Email { get; set; } = string.Empty;
+        public string UID { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+    }
+
+    // Class data model
+    public class ClassData
+    {
+        public string ClassId { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public List<string> SelectedDays { get; set; } = new List<string>();
+        public string ClassStartTime { get; set; } = string.Empty;
+        public string ClassEndTime { get; set; } = string.Empty;
+        public DateTime ClassStartDate { get; set; } = DateTime.Now;
+        public DateTime ClassEndDate { get; set; } = DateTime.Now;
+        public int LateMinutes { get; set; } = 0;
+        public int AbsentMinutes { get; set; } = 0;
+        public string CreatorEmail { get; set; } = string.Empty;
+    }
+
+    // Generated invite model
+    public class GeneratedInvite
+    {
+        public string InviteCode { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+    }
+
+    // Initialize component
+    protected override async Task OnInitializedAsync()
+    {
+        // Load user data and check if user is instructor
+        await LoadUserData();
+        await LoadClasses();
+    }
+
+    // Load user data using JavaScript interop
+    private async Task LoadUserData()
+    {
+        try
+        {
+            // Invoke JavaScript function to get user data
+            userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+            // Determine if user is an instructor
+            isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if user data retrieval fails
+            errorMessage = $"Error loading user data: {ex.Message}";
+        }
+    }
+
+    // Load classes based on user type (instructor or student)
+    private async Task LoadClasses()
+    {
+        try
+        {
+            if (isInstructor)
+            {
+                // Fetch all classes created by the instructor
+                var allClasses = await FirebaseClient
+                    .Child("classes")
+                    .OnceAsync<ClassData>();
+
+                // Filter classes where the creator email matches the current user
+                classes = allClasses
+                    .Where(c => c.Object.CreatorEmail == userData.Email)
+                    .Select(c => new ClassData
+                        {
+                            ClassId = c.Key,
+                            ClassName = c.Object.ClassName,
+                            SelectedDays = c.Object.SelectedDays,
+                            ClassStartTime = c.Object.ClassStartTime,
+                            ClassEndTime = c.Object.ClassEndTime,
+                            ClassStartDate = c.Object.ClassStartDate,
+                            ClassEndDate = c.Object.ClassEndDate,
+                            LateMinutes = c.Object.LateMinutes,
+                            AbsentMinutes = c.Object.AbsentMinutes,
+                            CreatorEmail = c.Object.CreatorEmail
+                        }).ToList();
+            }
+            else
+            {
+                // Fetch classes the student is enrolled in
+                var studentClasses = await FirebaseClient
+                    .Child("users")
+                    .Child(userData.UID)
+                    .Child("classes")
+                    .OnceAsync<string>();
+
+                var enrolledClassIds = studentClasses.Select(sc => sc.Key).ToList();
+
+                foreach (var classId in enrolledClassIds)
+                {
+                    // Retrieve class data for each enrolled class
+                    var classData = await FirebaseClient
+                        .Child("classes")
+                        .Child(classId)
+                        .OnceSingleAsync<ClassData>();
+
+                    // Assign class ID and add to the list of classes
+                    classData.ClassId = classId;
+                    classes.Add(classData);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if loading classes fails
+            errorMessage = $"Error loading classes: {ex.Message}";
+        }
+    }
+
+    // Generate invite code for a specific class
+    private async Task GenerateInviteCode(string classId, string className)
+    {
+        try
+        {
+            // Generate a new unique invite code
+            inviteCode = Guid.NewGuid().ToString();
+
+            // Store invite code in Firebase with class ID and expiry time
+            await FirebaseClient
+                .Child("inviteCodes")
+                .Child(inviteCode)
+                .PutAsync(new { ClassId = classId, Expiry = DateTime.UtcNow.AddHours(4) });
+
+            // Provide success message with generated invite code
+            successMessage = $"Invite link successfully generated for {className}: {inviteCode}<br/>";
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if invite code generation fails
+            errorMessage = $"Error generating invite code: {ex.Message}";
+        }
+    }
+
+    // Join a class using an invite code
+    private async Task JoinClass()
+    {
+        try
+        {
+            string[] initializeStudent = ["P"];
+
+            // Fetch invite details using the provided invite code
+            var invite = await FirebaseClient
+                .Child("inviteCodes")
+                .Child(joinClassCode)
+                .OnceSingleAsync<dynamic>();
+
+            // Check if invite exists and is not expired
+            if (invite != null && DateTime.Parse(invite.Expiry.ToString()) > DateTime.UtcNow)
+            {
+                // Retrieve class ID from the invite
+                string classId = invite.ClassId;
+
+                // Add the class to the student's list of enrolled classes
+                await FirebaseClient
+                    .Child("users")
+                    .Child(userData.UID)
+                    .Child("classes")
+                    .Child(classId)
+                    .PutAsync(true);
+
+                // Add student's display name to the class's student list
+                await FirebaseClient
+                    .Child("classes")
+                    .Child(classId)
+                    .Child("Students")
+                    .Child(userData.DisplayName)
+                    .PutAsync(initializeStudent);
+
+                // Provide success message and reload classes
+                successMessage = "Class joined successfully!";
+                await LoadClasses();
+            }
+            else
+            {
+                // Notify user if invite code is invalid or expired
+                errorMessage = "Invalid or expired invite code.";
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if joining class fails
+            errorMessage = $"Error joining class: {ex.Message}";
+        }
+    }
+
+    // Redirect to create class page
+    private void RedirectToCreateClass()
+    {
+        Navigation.NavigateTo("/classes/create");
+    }
+
+    // Redirect to check-in page
+    private void RedirectToCheckin()
+    {
+        Navigation.NavigateTo("/checkin");
+    }
+
+    // Method to sanitize class name for use as collapse id
+    string SanitizeClassName(string className)
+    {
+        return className.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+    }
+
+    // Toggle visibility of class details
+    private async Task ToggleClassDetails(string className)
+    {
+        await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
+    }
+}
+
 <PageTitle>Classes</PageTitle>
 
-<h3>Classes</h3>
-
-<!-- Welcome message -->
-<p>Welcome to your classes, have a great day!</p>
-
-<!-- Button to add a new class -->
-<button @onclick="RedirectToAddClass" class="btn btn-primary">Add Class</button>
-
-<!-- Conditional rendering of class list -->
-@if (classes == null)
+<!-- Display error message if any -->
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <!-- Show loading message while classes are being loaded -->
-    <p>Loading classes...</p>
+    <div class="alert alert-danger">@errorMessage</div>
 }
-else if (classes.Count == 0)
+
+<!-- Display success message if any -->
+@if (!string.IsNullOrEmpty(successMessage))
 {
-    <!-- Show message if no classes are available -->
-    <p>No classes available.</p>
+    <div class="alert alert-success" style="white-space: pre-wrap;">
+        @((MarkupString)successMessage)
+    </div>
 }
-else
+
+<!-- If user is an instructor, show their classes -->
+@if (isInstructor == true)
 {
-    <!-- Display list of classes -->
-    <ul class="list-group">
+    <h4>Create a Class</h4>
+
+    <div>
+        <button class="btn btn-primary" @onclick="RedirectToCreateClass">Create a Class</button>
+    </div>
+
+    <ul>
         @foreach (var classItem in classes)
         {
             <!-- Sanitize class name to use as collapse id -->
             <li class="list-group-item">
                 @{
-                    var sanitizedClassName = classItem.ClassName.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+                    var sanitizedClassName = SanitizeClassName(classItem.ClassName);
                 }
+
                 <!-- Link to toggle class details -->
                 <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
                     @classItem.ClassName
                 </a>
-                <!-- Check-in button -->
-                <button @onclick="RedirectToCheckin" class="btn btn-primary">Check in</button>
+
+                <!-- Button to generate invite code for the class -->
+                <button class="btn btn-primary" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
 
                 <!-- Collapsible div for class details -->
                 <div class="collapse" id="collapse-@sanitizedClassName">
@@ -60,71 +301,50 @@ else
     </ul>
 }
 
-@code {
-    // List to store class details
-    private List<ClassModel> classes;
+<!-- If user is not an instructor, show classes they can join -->
+@if (isInstructor == false)
+{
+    <h4>Join a Class</h4>
 
-    // Load classes when the component is initialized
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadClasses();
-    }
+    <div>
+        <label>Invite Code:</label>
+        <InputText @bind-Value="joinClassCode" />
+        <button class="btn btn-primary" @onclick="JoinClass">Join Class</button>
+    </div>
 
-    // Redirect to the add class page
-    private void RedirectToAddClass()
-    {
-        Navigation.NavigateTo("/classes/create");
-    }
-
-    // Redirect to the checkin page
-    private void RedirectToCheckin()
-    {
-        Navigation.NavigateTo("/checkin");
-    }
-
-    // Load classes from Firebase database
-    private async Task LoadClasses()
-    {
-        try
+    <ul>
+        @foreach (var classItem in classes)
         {
-            // Firebase database URL
-            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-            if (string.IsNullOrEmpty(databaseUrl))
-            {
-                throw new Exception("Firebase:DatabaseUrl is null or empty");
-            }
+            <!-- Sanitize class name to use as collapse id -->
+            <li class="list-group-item">
+                @{
+                    var sanitizedClassName = SanitizeClassName(classItem.ClassName);
+                }
 
-            // Initialize Firebase client
-            var firebaseClient = new FirebaseClient(databaseUrl);
-            var result = await firebaseClient
-                .Child("classes")
-                .OnceAsync<ClassModel>();
+                <!-- Link to toggle class details -->
+                <a class="btn btn-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                    @classItem.ClassName
+                </a>
 
-            // Store class details in the list
-            classes = result.Select(item => item.Object).ToList();
+                <!-- Check-in button only shown to students -->
+                @if (!isInstructor)
+                {
+                    <button class="btn btn-primary" @onclick="RedirectToCheckin">Check in</button>
+                }
+
+                <!-- Collapsible div for class details -->
+                <div class="collapse" id="collapse-@sanitizedClassName">
+                    <div class="card card-body">
+                        <p><strong>Days:</strong> @string.Join(", ", classItem.SelectedDays)</p>
+                        <p><strong>Start Time:</strong> @classItem.ClassStartTime</p>
+                        <p><strong>End Time:</strong> @classItem.ClassEndTime</p>
+                        <p><strong>Start Date:</strong> @classItem.ClassStartDate.ToString("yyyy-MM-dd")</p>
+                        <p><strong>End Date:</strong> @classItem.ClassEndDate.ToString("yyyy-MM-dd")</p>
+                        <p><strong>Late Minutes:</strong> @classItem.LateMinutes</p>
+                        <p><strong>Absent Minutes:</strong> @classItem.AbsentMinutes</p>
+                    </div>
+                </div>
+            </li>
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading classes: {ex.Message}");
-        }
-    }
-
-    // Toggle class details visibility
-    private async Task ToggleClassDetails(string className)
-    {
-        await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
-    }
-
-    // Class model to store class details
-    public class ClassModel
-    {
-        public string ClassName { get; set; } = string.Empty;
-        public List<string> SelectedDays { get; set; } = new List<string>();
-        public string ClassStartTime { get; set; } = string.Empty;
-        public string ClassEndTime { get; set; } = string.Empty;
-        public DateTime ClassStartDate { get; set; } = DateTime.Now;
-        public DateTime ClassEndDate { get; set; } = DateTime.Now;
-        public int LateMinutes { get; set; } = 0;
-        public int AbsentMinutes { get; set; } = 0;
-    }
+    </ul>
 }
