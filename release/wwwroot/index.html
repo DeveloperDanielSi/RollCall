@@ -20,6 +20,7 @@
     <!-- jQuery and Bootstrap JavaScript -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="_content/Microsoft.AspNetCore.Components.WebAssembly.Authentication/AuthenticationService.js"></script>
 
     <script>
         // Firebase configuration object
@@ -39,6 +40,9 @@
         const auth = firebase.auth();
         const database = firebase.database();
 
+        // Global variable to store role and authentication status
+        let isInstructor = false;
+
         /**
          * Function to handle Google login.
          * Restricts login to users with URI.edu domain.
@@ -46,7 +50,8 @@
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.setCustomParameters({
-                'hd': 'uri.edu', // Restrict to URI.edu domain
+                // Restrict to URI.edu domain
+                // 'hd': 'uri.edu',
                 'prompt': 'select_account'
             });
 
@@ -55,14 +60,18 @@
                 const user = result.user;
                 const emailDomain = user.email.split('@')[1];
 
+                await saveUserData(user);
+                await updateUserRole(user.uid);
+                window.location.href = "/classes";
+
                 // Check if the email domain is uri.edu
-                if (emailDomain !== 'uri.edu') {
-                    await auth.signOut();
-                    alert('Only URI.edu emails are allowed.');
-                } else {
-                    await saveUserData(user);
-                    window.location.href = "/classes"; // Redirect to classes page on successful login
-                }
+                //if (emailDomain !== 'uri.edu') {
+                //    await auth.signOut();
+                //    alert('Only URI.edu emails are allowed.');
+                //} else {
+                //    await saveUserData(user);
+                //    window.location.href = "/classes";
+                //}
             } catch (error) {
                 console.error("Sign in error:", error);
                 alert("Sign in failed. Please try again.");
@@ -77,27 +86,26 @@
             const userRef = database.ref('users/' + user.uid);
             const snapshot = await userRef.once('value');
 
-            // Check if user data exists
             if (snapshot.exists()) {
                 const existingData = snapshot.val();
-
-                // Update only missing fields without modifying existing instructor value
                 await userRef.update({
                     firstName: existingData.firstName || user.displayName.split(' ')[0],
                     lastName: existingData.lastName || user.displayName.split(' ').slice(1).join(' '),
-                    email: existingData.email || user.email
-                    // Do not update the instructor field
+                    email: existingData.email || user.email,
+                    isInstructor: existingData.isInstructor || false, // Default isInstructor set to false
+                    Classes: existingData.Classes || {}
                 });
             } else {
-                // Set new user data
                 await userRef.set({
                     firstName: user.displayName.split(' ')[0],
                     lastName: user.displayName.split(' ').slice(1).join(' '),
                     email: user.email,
-                    instructor: false // Default role set to false
+                    isInstructor: false, // Default isInstructor set to false
+                    Classes: {}
                 });
             }
         }
+
         /**
          * Function to get current user data.
          * @returns {object|null} - The user data object or null if not authenticated.
@@ -108,16 +116,49 @@
                 return {
                     displayName: user.displayName,
                     email: user.email,
-                    instructor: user.instructor
+                    uid: user.uid,
+                    isInstructor: isInstructor
                 };
             }
             return null;
         }
 
         /**
+         * Function to update the user's role in the global variable.
+         * @param {string} userId - The user ID.
+         */
+        async function updateUserRole(userId) {
+            const userRef = database.ref('users/' + userId);
+            const snapshot = await userRef.once('value');
+
+            if (snapshot.exists()) {
+                isInstructor = snapshot.val().isInstructor || false;
+                // Store the isInstructor value in session storage
+                sessionStorage.setItem('isInstructor', isInstructor);
+            }
+        }
+
+        /**
+         * Function to get the instructor status.
+         * @returns {boolean} - True if the user is an instructor, otherwise false.
+         */
+        function getIsInstructor() {
+            return sessionStorage.getItem('isInstructor') === 'true';
+        }
+
+        /**
+         * Function to check if the user is authenticated.
+         * @returns {boolean} - True if the user is authenticated, otherwise false.
+         */
+        function isUserAuthenticated() {
+            return !!auth.currentUser;
+        }
+
+        /**
          * Function to handle user logout.
          */
         async function logout() {
+            isInstructor = false;
             try {
                 await auth.signOut();
                 console.log("User signed out.");
@@ -127,12 +168,14 @@
             }
         }
 
-        /**
-         * Function to check if the user is authenticated.
-         * @returns {boolean} - True if the user is authenticated, otherwise false.
-         */
-        function isUserAuthenticated() {
-            return !!auth.currentUser;
+        async function resyncLoginSession() {
+            const user = auth.currentUser;
+            if (user) {
+                await updateUserRole(user.uid);
+            }
+            else {
+                isInstructor = false;
+            }
         }
 
         /**
@@ -149,9 +192,10 @@
         // Expose functions to the global scope for accessibility
         window.loginWithGoogle = loginWithGoogle;
         window.logout = logout;
-        window.isUserAuthenticated = isUserAuthenticated;
         window.saveUserData = saveUserData;
         window.getUserData = getUserData;
+        window.updateUserRole = updateUserRole;
+        window.getIsInstructor = getIsInstructor;
     </script>
 </head>
 <body>

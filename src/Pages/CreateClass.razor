@@ -8,115 +8,42 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
-<PageTitle>Create Class</PageTitle>
-
-<h3>Create Class</h3>
-
-<!-- Form to create a new class -->
-<EditForm Model="@classModel" OnValidSubmit="HandleValidSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <!-- Class Name input field -->
-    <div>
-        <label>Class Name:</label>
-        <InputText @bind-Value="classModel.ClassName" />
-    </div>
-
-    <!-- Days of the week checkboxes -->
-    <div>
-        <label>What days does the class meet?</label>
-        <div>
-            <InputCheckbox @bind-Value="classModel.Monday" />
-            <label>Monday</label>
-        </div>
-        <div>
-            <InputCheckbox @bind-Value="classModel.Tuesday" />
-            <label>Tuesday</label>
-        </div>
-        <div>
-            <InputCheckbox @bind-Value="classModel.Wednesday" />
-            <label>Wednesday</label>
-        </div>
-        <div>
-            <InputCheckbox @bind-Value="classModel.Thursday" />
-            <label>Thursday</label>
-        </div>
-        <div>
-            <InputCheckbox @bind-Value="classModel.Friday" />
-            <label>Friday</label>
-        </div>
-    </div>
-
-    <!-- Class Start Time input field -->
-    <div>
-        <label>Class Start Time:</label>
-        <InputText @bind-Value="classModel.ClassStartTime" type="time" />
-    </div>
-
-    <!-- Class End Time input field -->
-    <div>
-        <label>Class End Time:</label>
-        <InputText @bind-Value="classModel.ClassEndTime" type="time" />
-    </div>
-
-    <!-- Class Start Date input field -->
-    <div>
-        <label>Class Start Date:</label>
-        <InputDate @bind-Value="classModel.ClassStartDate" />
-    </div>
-
-    <!-- Class End Date input field -->
-    <div>
-        <label>Class End Date:</label>
-        <InputDate @bind-Value="classModel.ClassEndDate" />
-    </div>
-
-    <!-- Late Minutes input field -->
-    <div>
-        <label>How many minutes is considered late?</label>
-        <InputNumber @bind-Value="classModel.LateMinutes" />
-    </div>
-
-    <!-- Absent Minutes input field -->
-    <div>
-        <label>How many minutes is considered absent?</label>
-        <InputNumber @bind-Value="classModel.AbsentMinutes" />
-    </div>
-
-    <!-- Submit button -->
-    <button type="submit">Submit</button>
-</EditForm>
-
-<!-- Display error message if any -->
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger">@errorMessage</div>
-}
-
 @code {
+    // Declare FirebaseClient object to interact with Firebase Realtime Database
+    private FirebaseClient FirebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
+
+    // Indicates if the current user is an instructor
+    private bool isInstructor;
+    private string creatorEmail = string.Empty;
+
+    // Represents user data obtained from JavaScript interop
     public class UserData
     {
         public string Email { get; set; } = string.Empty;
     }
 
-    private string creatorEmail = string.Empty;
-
+    // Represents the form data for creating a class
     public class ClassModel
     {
-        [Required]
+        [Required(ErrorMessage = "Class name is required.")]
         public string ClassName { get; set; } = string.Empty;
-        [Required]
+
+        [Required(ErrorMessage = "Start time is required.")]
         public string ClassStartTime { get; set; } = string.Empty;
-        [Required]
+
+        [Required(ErrorMessage = "End time is required.")]
         public string ClassEndTime { get; set; } = string.Empty;
-        [Required]
+
+        [Required(ErrorMessage = "Start date is required.")]
         public DateTime ClassStartDate { get; set; } = DateTime.Now;
-        [Required]
+
+        [Required(ErrorMessage = "End date is required.")]
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
-        [Required]
+
+        [Required(ErrorMessage = "Late minutes threshold is required.")]
         public int LateMinutes { get; set; } = 0;
-        [Required]
+
+        [Required(ErrorMessage = "Absent minutes threshold is required.")]
         public int AbsentMinutes { get; set; } = 0;
 
         // Days of the week checkboxes
@@ -127,6 +54,7 @@
         public bool Friday { get; set; }
     }
 
+    // Represents the data structure to be saved in Firebase
     public class ClassData
     {
         public string ClassName { get; set; } = string.Empty;
@@ -140,12 +68,16 @@
         public string CreatorEmail { get; set; } = string.Empty;
     }
 
+    // Initialize classModel and errorMessage variables
     private ClassModel classModel = new ClassModel();
     private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        // Fetch user data from JavaScript interop
         var userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+        isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
+
         if (userData != null)
         {
             creatorEmail = userData.Email;
@@ -153,27 +85,19 @@
         }
     }
 
+    // Handles form submission
     private async Task HandleValidSubmit()
     {
         try
         {
-            if (Configuration == null)
-            {
-                throw new Exception("Configuration is null");
-            }
-
-            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-            if (string.IsNullOrEmpty(databaseUrl))
-            {
-                throw new Exception("Firebase:DatabaseUrl is null or empty");
-            }
-
+            // Parse start and end times
             var startTime = TimeSpan.Parse(classModel.ClassStartTime);
             var endTime = TimeSpan.Parse(classModel.ClassEndTime);
 
-            var firebaseClient = new FirebaseClient(databaseUrl);
+            // Generate unique ID for the class
             var uid = Guid.NewGuid().ToString();
 
+            // Collect selected days for the class
             var selectedDays = new List<string>();
             if (classModel.Monday) selectedDays.Add("Monday");
             if (classModel.Tuesday) selectedDays.Add("Tuesday");
@@ -181,6 +105,7 @@
             if (classModel.Thursday) selectedDays.Add("Thursday");
             if (classModel.Friday) selectedDays.Add("Friday");
 
+            // Prepare class data for Firebase
             var classData = new ClassData
                 {
                     ClassName = classModel.ClassName,
@@ -194,21 +119,25 @@
                     CreatorEmail = creatorEmail
                 };
 
-            // Generate CSV data
+            // Generate CSV data for class dates
             var csvData = GenerateCSV(classData);
 
-            // Save class data to Firebase
-            await firebaseClient
-                .Child("classes")
-                .Child(uid)
-                .PutAsync(classData); 
+            // Serialize CSV data to JSON for Firebase
+            var jsonMember = JsonSerializer.Serialize<string>(csvData);
 
-            // Store CSV data in Firebase RTDB
-            await firebaseClient
+            // Save class data to Firebase Realtime Database
+            await FirebaseClient
                 .Child("classes")
                 .Child(uid)
-                .Child("classData.csv")
-                .PutAsync(csvData);
+                .PutAsync(classData);
+
+            // Store CSV data in Firebase Realtime Database under "Dates" node
+            await FirebaseClient
+                .Child("classes")
+                .Child(uid)
+                .Child("Students")
+                .Child("Dates")
+                .PutAsync(jsonMember);
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
             Navigation.NavigateTo("/classes");
@@ -219,6 +148,7 @@
         }
     }
 
+    // Generates CSV data for selected class dates
     private string GenerateCSV(ClassData classData)
     {
         DateTime startDate = classData.ClassStartDate;
@@ -227,45 +157,109 @@
 
         StringBuilder csvBuilder = new StringBuilder();
 
-        // Build CSV header
-        csvBuilder.AppendLine("Class Name,Class Start Time,Class End Time,");
-
-        // Initialize currentDate for iterating through days
-        DateTime currentDate = startDate;
-
         // Iterate through each day between start and end dates
-        while (currentDate <= endDate)
+        for (DateTime currentDate = startDate; currentDate <= endDate; currentDate = currentDate.AddDays(1))
         {
             // Check if the current day is one of the selected days
             if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
             {
-                csvBuilder.Append($"{currentDate:yyyy-MM-dd},");
+                csvBuilder.Append($"{currentDate.Year}-{currentDate.Month}-{currentDate.Day},");
             }
-
-            // Move to the next day
-            currentDate = currentDate.AddDays(1);
         }
-        csvBuilder.AppendLine(); // New line for data rows
-
-        // Build CSV data row
-        csvBuilder.Append($"{classData.ClassName},{classData.ClassStartTime},{classData.ClassEndTime},");
-
-        // Reset currentDate to startDate for data rows
-        currentDate = startDate;
-        while (currentDate <= endDate)
-        {
-            // Check if the current day is one of the selected days
-            if (selectedDays.Contains(currentDate.DayOfWeek.ToString()))
-            {
-                // Add your specific data for each day here if needed
-                csvBuilder.Append(",");
-            }
-
-            // Move to the next day
-            currentDate = currentDate.AddDays(1);
-        }
-        csvBuilder.AppendLine(); // End of data row
-
-        return csvBuilder.ToString();
+        return csvBuilder.ToString().TrimEnd(',');
     }
+}
+
+@if (isInstructor == true)
+{
+    <PageTitle>Create Class</PageTitle>
+
+    <h3>Create Class</h3>
+
+    <!-- Form to create a new class -->
+    <EditForm Model="@classModel" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <!-- Class Name input field -->
+        <div>
+            <label>Class Name:</label>
+            <InputText @bind-Value="classModel.ClassName" />
+        </div>
+
+        <!-- Days of the week checkboxes -->
+        <div>
+            <label>What days does the class meet?</label>
+            <div>
+                <InputCheckbox @bind-Value="classModel.Monday" />
+                <label>Monday</label>
+            </div>
+            <div>
+                <InputCheckbox @bind-Value="classModel.Tuesday" />
+                <label>Tuesday</label>
+            </div>
+            <div>
+                <InputCheckbox @bind-Value="classModel.Wednesday" />
+                <label>Wednesday</label>
+            </div>
+            <div>
+                <InputCheckbox @bind-Value="classModel.Thursday" />
+                <label>Thursday</label>
+            </div>
+            <div>
+                <InputCheckbox @bind-Value="classModel.Friday" />
+                <label>Friday</label>
+            </div>
+        </div>
+
+        <!-- Class Start Time input field -->
+        <div>
+            <label>Class Start Time:</label>
+            <InputText @bind-Value="classModel.ClassStartTime" type="time" />
+        </div>
+
+        <!-- Class End Time input field -->
+        <div>
+            <label>Class End Time:</label>
+            <InputText @bind-Value="classModel.ClassEndTime" type="time" />
+        </div>
+
+        <!-- Class Start Date input field -->
+        <div>
+            <label>Class Start Date:</label>
+            <InputDate @bind-Value="classModel.ClassStartDate" />
+        </div>
+
+        <!-- Class End Date input field -->
+        <div>
+            <label>Class End Date:</label>
+            <InputDate @bind-Value="classModel.ClassEndDate" />
+        </div>
+
+        <!-- Late Minutes input field -->
+        <div>
+            <label>How many minutes is considered late?</label>
+            <InputNumber @bind-Value="classModel.LateMinutes" />
+        </div>
+
+        <!-- Absent Minutes input field -->
+        <div>
+            <label>How many minutes is considered absent?</label>
+            <InputNumber @bind-Value="classModel.AbsentMinutes" />
+        </div>
+
+        <!-- Submit button -->
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </EditForm>
+
+    <!-- Display error message if any -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+}
+else
+{
+    <!-- Message for non-instructors -->
+    <p>You must be an instructor to create a class. How'd you get here anyways?</p>
 }

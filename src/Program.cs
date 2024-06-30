@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+var services = builder.Services;
 
 // Add the main app component to the root of the app
 builder.RootComponents.Add<App>("#app");
@@ -27,7 +28,20 @@ builder.Services.AddOidcAuthentication(options =>
     options.ProviderOptions.DefaultScopes.Add("profile");
     options.ProviderOptions.DefaultScopes.Add("email");
     options.ProviderOptions.ResponseMode = "query";
+
+    //// Configure  options.ProviderOptions.DefaultScopes.Add("openid");
+    //options.ProviderOptions.DefaultScopes.Add("profile");
+    //options.ProviderOptions.DefaultScopes.Add("email");
+    //options.ProviderOptions.ResponseMode = "query";
 });
+
+//builder.AddAuthorizationCore(
+//Options => {
+//    Options.addpolicy("admin", policy => {
+//    Policy.requireRole(RoleScopes.YOURADMINROLE));
+//});
+
+
 
 // Build and run the app
 await builder.Build().RunAsync();

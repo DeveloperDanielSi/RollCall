@@ -2,34 +2,22 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<PageTitle>Settings</PageTitle>
-
-<!-- User Profile Section -->
-<h3>User Profile</h3>
-<div>
-    <p>Name: @userName</p>
-    <p>Email: @userEmail</p>
-    <p>Role: @userRole</p>
-</div>
-
-<!-- Logout Button -->
-<button class="btn btn-primary" @onclick="Logout">Logout</button>
-
 @code {
     // Fields to store user data
     private string userName = string.Empty;
     private string userEmail = string.Empty;
-    private string userRole = string.Empty;
+    private bool isInstructor;
 
     // On component initialization, fetch user data from JavaScript
     protected override async Task OnInitializedAsync()
     {
         var userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+        isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
+
         if (userData != null)
         {
             userName = userData.DisplayName;
             userEmail = userData.Email;
-            userRole = userData.Role;
             StateHasChanged(); // Notify the component to re-render
         }
     }
@@ -39,7 +27,6 @@
     {
         userName = userData.DisplayName;
         userEmail = userData.Email;
-        userRole = userData.Role;
         await InvokeAsync(StateHasChanged); // Notify the component to re-render
     }
 
@@ -47,6 +34,7 @@
     private async Task Logout()
     {
         await JSRuntime.InvokeVoidAsync("logout"); // Call JavaScript function to log out
+        await JSRuntime.InvokeVoidAsync("resyncLoginSession");
         Navigation.NavigateTo("/"); // Navigate to the home page
     }
 
@@ -55,6 +43,26 @@
     {
         public string DisplayName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
     }
 }
+
+<PageTitle>Settings</PageTitle>
+
+<!-- User Profile Section -->
+<h3>User Profile</h3>
+<div>
+    <!-- Display user information -->
+    <p>Name: @userName</p>
+    <p>Email: @userEmail</p>
+    <p>Role: @if (isInstructor)
+        {
+            <span>Instructor</span>
+        }
+        else
+        {
+            <span>Student</span>
+        }</p>
+</div>
+
+<!-- Logout Button -->
+<button class="btn btn-primary" @onclick="Logout">Logout</button>

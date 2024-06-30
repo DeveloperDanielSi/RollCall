@@ -2,12 +2,30 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // Invoke JavaScript method to resynchronize login session
+        await JSRuntime.InvokeVoidAsync("resyncLoginSession");
+    }
+
+    // Initiates Google Sign-In process
+    private async Task Login()
+    {
+        await JSRuntime.InvokeVoidAsync("loginWithGoogle");
+    }
+}
+
 <PageTitle>Home</PageTitle>
 
 <!-- Google Sign-In button -->
 <button class="gsi-material-button" @onclick="Login">
+    <!-- Button state -->
     <div class="gsi-material-button-state"></div>
+
+    <!-- Button content wrapper -->
     <div class="gsi-material-button-content-wrapper">
+        <!-- Button icon -->
         <div class="gsi-material-button-icon">
             <!-- Google Sign-In button icon (SVG) -->
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: block;">
@@ -18,16 +36,11 @@
                 <path fill="none" d="M0 0h48v48H0z"></path>
             </svg>
         </div>
+
         <!-- Button text -->
         <span class="gsi-material-button-contents">Sign in with Google</span>
+
+        <!-- Hidden span for accessibility -->
         <span style="display: none;">Sign in with Google</span>
     </div>
 </button>
-
-@code {
-    // Method to initiate Google Sign-In process
-    private async Task Login()
-    {
-        await JSRuntime.InvokeVoidAsync("loginWithGoogle");
-    }
-}

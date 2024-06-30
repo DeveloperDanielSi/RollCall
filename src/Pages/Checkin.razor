@@ -1,11 +1,5 @@
 ﻿@page "/checkin"
 @inject NavigationManager Navigation
-
-<h>You have been signed in.</h>
-<p>You will be returned to your class page in 5 seconds...</p>
-<!-- Button that returns user back to /classes -->
-<button @onclick="RedirectToClasses" class="btn btn-primary">Return Now</button>
-
 @code {
 
     // Button code to return to /classes
@@ -29,3 +23,9 @@
     }
 
 }
+
+<h>You have been signed in.</h>
+<p>You will be returned to your class page in 5 seconds...</p>
+<!-- Button that returns user back to /classes -->
+<button @onclick="RedirectToClasses" class="btn btn-primary">Return Now</button>
+
