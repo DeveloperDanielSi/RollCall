@@ -9,6 +9,20 @@
      * Then when we implement thecheck in feature we will be able to populate the sheet with the attendance of the students. That way we can establish a record of attendance for each student.
      * To pull that data we will have a second sheet that keeps track of the attendance of each student (ie, absceneces, tardies, and present days).
     */
+
+   /*
+    * Location Testing
+    */
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("locationTesting.initialize");
+        }
+    }
 }
 
 <PageTitle>Reporting</PageTitle>
+
+<button id="locationButton">Ask for Location</button>
+<div id="target"></div>

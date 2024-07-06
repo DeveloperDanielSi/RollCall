@@ -2,16 +2,13 @@
 @using System.ComponentModel.DataAnnotations
 @using Firebase.Database
 @using Firebase.Database.Query
-@using System.Text.Json
 @using System.Text
+@using System.Text.Json
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
 @code {
-    // Declare FirebaseClient object to interact with Firebase Realtime Database
-    private FirebaseClient FirebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
     // Indicates if the current user is an instructor
     private bool isInstructor;
     private string creatorEmail = string.Empty;
@@ -46,6 +43,12 @@
         [Required(ErrorMessage = "Absent minutes threshold is required.")]
         public int AbsentMinutes { get; set; } = 0;
 
+        [Required(ErrorMessage = "Checkin location is required.")]
+        public string CheckinLocation { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Checkin distance is required.")]
+        public int CheckinDistance { get; set; } = 0;
+
         // Days of the week checkboxes
         public bool Monday { get; set; }
         public bool Tuesday { get; set; }
@@ -65,6 +68,8 @@
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
+        public string CheckinLocation { get; set; } = string.Empty;
+        public int CheckinDistance { get; set; } = 0;
         public string CreatorEmail { get; set; } = string.Empty;
     }
 
@@ -77,11 +82,19 @@
         // Fetch user data from JavaScript interop
         var userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
         isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
-
         if (userData != null)
         {
             creatorEmail = userData.Email;
             StateHasChanged();
+        }        
+    }
+
+    // Initialize geolocation service
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("locationTesting.initialize");
         }
     }
 
@@ -90,6 +103,10 @@
     {
         try
         {
+            // Initialize Firebase client
+            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+            var firebaseClient = new FirebaseClient(databaseUrl);
+
             // Parse start and end times
             var startTime = TimeSpan.Parse(classModel.ClassStartTime);
             var endTime = TimeSpan.Parse(classModel.ClassEndTime);
@@ -116,6 +133,8 @@
                     ClassEndDate = classModel.ClassEndDate,
                     LateMinutes = classModel.LateMinutes,
                     AbsentMinutes = classModel.AbsentMinutes,
+                    CheckinLocation = classModel.CheckinLocation,
+                    CheckinDistance = classModel.CheckinDistance,
                     CreatorEmail = creatorEmail
                 };
 
@@ -123,16 +142,16 @@
             var csvData = GenerateCSV(classData);
 
             // Serialize CSV data to JSON for Firebase
-            var jsonMember = JsonSerializer.Serialize<string>(csvData);
+            var jsonMember = JsonSerializer.Serialize(csvData);
 
             // Save class data to Firebase Realtime Database
-            await FirebaseClient
+            await firebaseClient
                 .Child("classes")
                 .Child(uid)
                 .PutAsync(classData);
 
             // Store CSV data in Firebase Realtime Database under "Dates" node
-            await FirebaseClient
+            await firebaseClient
                 .Child("classes")
                 .Child(uid)
                 .Child("Students")
@@ -168,6 +187,14 @@
         }
         return csvBuilder.ToString().TrimEnd(',');
     }
+
+    // Get current location
+    private async Task GetLocation()
+    {
+        classModel.CheckinLocation = await JSRuntime.InvokeAsync<string>("locationTesting.getTarget");
+        StateHasChanged();
+        Console.WriteLine($"Location: {classModel.CheckinLocation}");
+    }
 }
 
 @if (isInstructor == true)
@@ -177,7 +204,7 @@
     <h3>Create Class</h3>
 
     <!-- Form to create a new class -->
-    <EditForm Model="@classModel" OnValidSubmit="HandleValidSubmit">
+    <EditForm Model="@classModel">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
@@ -248,8 +275,20 @@
             <InputNumber @bind-Value="classModel.AbsentMinutes" />
         </div>
 
+        <!-- Checkin Location input field -->
+        <div>
+            <button @onclick="GetLocation" type="button" id="locationButton">Get Current Location</button>
+            <InputText id="target" @bind-Value="classModel.CheckinLocation" readonly="true" />
+        </div>
+
+        <!-- Checkin Distance input field -->
+        <div>
+            <label>What is the maximum distance for check-in (in meters)?</label>
+            <InputNumber @bind-Value="classModel.CheckinDistance" />
+        </div>
+
         <!-- Submit button -->
-        <button class="btn btn-primary" type="submit">Submit</button>
+        <button class="btn btn-primary" type="submit" @onclick="HandleValidSubmit">Submit</button>
     </EditForm>
 
     <!-- Display error message if any -->
@@ -258,7 +297,7 @@
         <div class="alert alert-danger">@errorMessage</div>
     }
 }
-else
+@if (isInstructor == false)
 {
     <!-- Message for non-instructors -->
     <p>You must be an instructor to create a class. How'd you get here anyways?</p>

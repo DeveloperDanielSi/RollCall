@@ -178,6 +178,27 @@ main[b-7vgifljx83] {
         overflow-y: auto;
     }
 }
+/* /Pages/Classes.razor.rz.scp.css */
+.class-item-container[b-fbdkdbv0na] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.class-item-link[b-fbdkdbv0na] {
+    margin-right: auto; /* Ensures the link stays on the left */
+}
+
+.class-item-buttons[b-fbdkdbv0na] {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+}
+
+.class-item-details[b-fbdkdbv0na] {
+    width: 100%;
+    margin-top: 1rem;
+}
 /* /Pages/Home.razor.rz.scp.css */
 .gsi-material-button[b-qm9agefbbj] {
     -moz-user-select: none;
