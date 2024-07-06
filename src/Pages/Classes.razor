@@ -2,7 +2,6 @@
 @using Firebase.Database
 @using Firebase.Database.Query
 @using System.Text.Json
-@using System.Text
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JSRuntime
@@ -10,9 +9,6 @@
 @inject NavigationManager Navigation
 
 @code {
-    // Declare FirebaseClient object to interact with Firebase Realtime Database
-    private FirebaseClient FirebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
     // User data
     private bool isInstructor;
     private UserData userData = new UserData();
@@ -85,12 +81,16 @@
     // Load classes based on user type (instructor or student)
     private async Task LoadClasses()
     {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
         try
         {
             if (isInstructor)
             {
                 // Fetch all classes created by the instructor
-                var allClasses = await FirebaseClient
+                var allClasses = await firebaseClient
                     .Child("classes")
                     .OnceAsync<ClassData>();
 
@@ -114,7 +114,7 @@
             else
             {
                 // Fetch classes the student is enrolled in
-                var studentClasses = await FirebaseClient
+                var studentClasses = await firebaseClient
                     .Child("users")
                     .Child(userData.UID)
                     .Child("classes")
@@ -125,7 +125,7 @@
                 foreach (var classId in enrolledClassIds)
                 {
                     // Retrieve class data for each enrolled class
-                    var classData = await FirebaseClient
+                    var classData = await firebaseClient
                         .Child("classes")
                         .Child(classId)
                         .OnceSingleAsync<ClassData>();
@@ -146,13 +146,17 @@
     // Generate invite code for a specific class
     private async Task GenerateInviteCode(string classId, string className)
     {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
         try
         {
             // Generate a new unique invite code
             inviteCode = Guid.NewGuid().ToString();
 
             // Store invite code in Firebase with class ID and expiry time
-            await FirebaseClient
+            await firebaseClient
                 .Child("inviteCodes")
                 .Child(inviteCode)
                 .PutAsync(new { ClassId = classId, Expiry = DateTime.UtcNow.AddHours(4) });
@@ -188,12 +192,16 @@
     // Join a class using an invite code
     private async Task JoinClass()
     {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
         try
         {
-            var initializeStudent = JsonSerializer.Serialize<string>("");
+            string initializeStudent = JsonSerializer.Serialize("");
 
             // Fetch invite details using the provided invite code
-            var invite = await FirebaseClient
+            var invite = await firebaseClient
                 .Child("inviteCodes")
                 .Child(joinClassCode)
                 .OnceSingleAsync<dynamic>();
@@ -205,7 +213,7 @@
                 string classId = invite.ClassId;
 
                 // Add the class to the student's list of enrolled classes
-                await FirebaseClient
+                await firebaseClient
                     .Child("users")
                     .Child(userData.UID)
                     .Child("classes")
@@ -213,7 +221,7 @@
                     .PutAsync(true);
 
                 // Add student's display name to the class's student list
-                await FirebaseClient
+                await firebaseClient
                     .Child("classes")
                     .Child(classId)
                     .Child("Students")
@@ -221,7 +229,7 @@
                     .PutAsync(initializeStudent);
 
                 // Add student's UID to the class's enrolled students list
-                await FirebaseClient
+                await firebaseClient
                     .Child("classes")
                     .Child(classId)
                     .Child("StudentsEnrolled")
@@ -248,10 +256,14 @@
     // Delete a class, with a prompt verifying if that actually want to delete {ClassName}, it will also remove the class from the student's list of enrolled classes
     private async Task DeleteClass(string classId, string className)
     {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
         try
         {
             // Fetch all user UIDs from Firebase
-            var userUids = await FirebaseClient
+            var userUids = await firebaseClient
                 .Child("classes")
                 .Child(classId)
                 .Child("StudentsEnrolled")
@@ -263,7 +275,7 @@
             if (confirmDelete)
             {
                 // Remove class from Firebase Realtime Database
-                await FirebaseClient
+                await firebaseClient
                     .Child("classes")
                     .Child(classId)
                     .DeleteAsync();
@@ -271,7 +283,7 @@
                 // Remove class from each user's list of enrolled classes
                 foreach (var user in userUids)
                 {
-                    await FirebaseClient
+                    await firebaseClient
                         .Child("users")
                         .Child(user.Key)
                         .Child("classes")

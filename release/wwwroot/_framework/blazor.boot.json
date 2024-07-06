@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "RollCall",
   "resources": {
-    "hash": "sha256-tOMhMx6B7Dyzwfd6yU7J8MRGTquYWQ6s3Gehiiber2E=",
+    "hash": "sha256-UOHropUEbbdUqxArXQTRaYt3KSNKA+fETjdNR6hBwB8=",
     "jsModuleNative": {
       "dotnet.native.8.0.6.ff9wzz6le4.js": "sha256-FMP5H6Z6xpt1aNFeZHbts9TEkY7RjUp3HnEtL5xdNfE="
     },
@@ -44,7 +44,7 @@
       "mscorlib.wasm": "sha256-ITwzfOJ3vHGh8TyQKWiDBteiihk1pJOKeIDjDe29p/M=",
       "netstandard.wasm": "sha256-zGLFcdF9AeD21fAf1v5hgxivBDT6dCLXdrrwmp0rjLg=",
       "Newtonsoft.Json.wasm": "sha256-PaicHOw1U7HF05kEvZI0Rgg1nwdA8hrzbzdkw1qgUuU=",
-      "RollCall.wasm": "sha256-CYCYTjZp996zHifCeYfWRoRiNMjGD3DOHDu05uGbaRQ=",
+      "RollCall.wasm": "sha256-gpWruX/tiyYaBN4RZWXksiM976CfKRfc6nEZbGIi4o4=",
       "System.Collections.Concurrent.wasm": "sha256-YN11DceZ9lP28wocQvKw0cGW+2OtySd47oBhan1V+dk=",
       "System.Collections.NonGeneric.wasm": "sha256-vavuiaugT6jap1zmRTI5UEV4dbz3087iGwueAHrqFFw=",
       "System.Collections.Specialized.wasm": "sha256-d+iRVSYGNFcmAX4zl8dWmb97vaBIDoPZH8MxOZlSfsQ=",
