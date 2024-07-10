@@ -309,10 +309,58 @@
         Navigation.NavigateTo("/classes/create");
     }
 
-    // Redirect to check-in page
-    private void RedirectToCheckin()
+    // Redirect to check-in page and log attendance
+    private async Task RecordAttendance(ClassData ToBeCheckedIn)
     {
-        Navigation.NavigateTo("/checkin");
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
+        // Make the string json serialized so it stops complaining
+        var jsonMember = JsonSerializer.Serialize(",P");
+
+        // Adding Attendance char to async
+        try
+        {
+            // Read current string in async to PresentLetter
+            var PresentLetter = await firebaseClient
+                        .Child("classes")
+                        .Child(ToBeCheckedIn.ClassId)
+                        .Child("Students")
+                        .Child(userData.DisplayName)
+                        .OnceAsJsonAsync();
+
+            // If the string is not null
+            if (!PresentLetter.Contains("null"))
+            {
+                // Add new comma and letter to the string
+                PresentLetter = JsonSerializer.Serialize(PresentLetter + jsonMember);
+                
+                // Remove encoded " characters for correct input
+                while (PresentLetter.Contains("\\u0022")){
+                    var pos = PresentLetter.IndexOf("\\u0022");
+                    PresentLetter = PresentLetter.Remove(pos, 6);
+                }
+            }
+            else
+            {
+                // Otherwise populate it with "P"
+                PresentLetter = JsonSerializer.Serialize("P");
+            }
+
+            // Overwrite data with the new string
+            await firebaseClient
+                        .Child("classes")
+                        .Child(ToBeCheckedIn.ClassId)
+                        .Child("Students")
+                        .Child(userData.DisplayName)
+                        .PutAsync(PresentLetter);
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if logging attendance fails
+            errorMessage = $"Error logging attendance: {ex.Message}";
+        }
     }
 
     // Method to sanitize class name for use as collapse id
@@ -423,7 +471,7 @@
                     <!-- Check-in button only shown to students -->
                     @if (!isInstructor)
                     {
-                        <button class="btn btn-primary class-item-button" @onclick="RedirectToCheckin">Check in</button>
+                        <button class="btn btn-primary class-item-button" @onclick="() => RecordAttendance(classItem)" data-target="classItem">Check in</button>
                     }
                 </div>
 
