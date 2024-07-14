@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\csvhelper.js" />
     <Content Remove="wwwroot\geolocation.js" />
   </ItemGroup>
 
@@ -23,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="wwwroot\csvhelper.js" />
     <None Include="wwwroot\geolocation.js" />
   </ItemGroup>
 
