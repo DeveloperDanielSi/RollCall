@@ -303,3 +303,42 @@ main[b-7vgifljx83] {
             background-color: #303030;
             opacity: 8%;
         }
+/* /Pages/Reporting.razor.rz.scp.css */
+.class-item-container[b-jqdoh0w2jx] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.class-item-link[b-jqdoh0w2jx] {
+    margin-right: auto; /* Ensures the link stays on the left */
+    text-decoration: none;
+    color: #007bff;
+    cursor: pointer;
+}
+
+.class-item-link:hover[b-jqdoh0w2jx] {
+    text-decoration: underline;
+}
+
+.class-item-buttons[b-jqdoh0w2jx] {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+}
+
+.class-item-buttons button[b-jqdoh0w2jx] {
+    padding: 5px 10px;
+}
+
+.class-item-buttons .btn-warning[b-jqdoh0w2jx] {
+    background-color: orange;
+    border-color: orange;
+    color: white;
+}
+
+.class-item-buttons .btn-secondary[b-jqdoh0w2jx] {
+    background-color: gray;
+    border-color: gray;
+    color: white;
+}

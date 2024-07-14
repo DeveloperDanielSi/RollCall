@@ -1,9 +1,9 @@
 ﻿@page "/classes"
 @using Firebase.Database
 @using Firebase.Database.Query
-@using System.Text.Json
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.Json
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -44,7 +44,9 @@
         public int LateMinutes { get; set; } = 0;
         public int AbsentMinutes { get; set; } = 0;
         public string CreatorEmail { get; set; } = string.Empty;
+        public Dictionary<string, string> Students { get; set; } = new Dictionary<string, string>();
     }
+
 
     // Generated invite model
     public class GeneratedInvite
@@ -82,8 +84,7 @@
     private async Task LoadClasses()
     {
         // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
+        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
 
         try
         {
@@ -147,8 +148,7 @@
     private async Task GenerateInviteCode(string classId, string className)
     {
         // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
+        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
 
         try
         {
@@ -193,12 +193,11 @@
     private async Task JoinClass()
     {
         // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
+        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
 
         try
         {
-            string initializeStudent = JsonSerializer.Serialize("");
+            string initializeStudent = "";
 
             // Fetch invite details using the provided invite code
             var invite = await firebaseClient
@@ -211,6 +210,16 @@
             {
                 // Retrieve class ID from the invite
                 string classId = invite.ClassId;
+
+                // Fetch the class dates
+                var classData = await firebaseClient
+                    .Child("classes")
+                    .Child(classId)
+                    .OnceSingleAsync<ClassData>();
+
+                // Initialize student's attendance string with the correct number of commas
+                var dates = classData.Students.ContainsKey("Dates") ? classData.Students["Dates"].Split(',') : new string[0];
+                initializeStudent = new string(',', Math.Max(0, dates.Length - 1));
 
                 // Add the class to the student's list of enrolled classes
                 await firebaseClient
@@ -226,7 +235,7 @@
                     .Child(classId)
                     .Child("Students")
                     .Child(userData.DisplayName)
-                    .PutAsync(initializeStudent);
+                    .PutAsync(JsonSerializer.Serialize(initializeStudent));
 
                 // Add student's UID to the class's enrolled students list
                 await firebaseClient
@@ -234,7 +243,7 @@
                     .Child(classId)
                     .Child("StudentsEnrolled")
                     .Child(userData.UID)
-                    .PutAsync(initializeStudent);
+                    .PutAsync(JsonSerializer.Serialize(initializeStudent));
 
                 // Provide success message and reload classes
                 successMessage = "Class joined successfully!";
@@ -303,16 +312,65 @@
         }
     }
 
+    // Redirect to check-in page
+    private async Task RecordAttendance(ClassData ToBeCheckedIn)
+    {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
+        // Make the string json serialized so it stops complaining
+        var jsonMember = JsonSerializer.Serialize(",P");
+
+        // Adding Attendance char to async
+        try
+        {
+            // Read current string in async to PresentLetter
+            var PresentLetter = await firebaseClient
+                        .Child("classes")
+                        .Child(ToBeCheckedIn.ClassId)
+                        .Child("Students")
+                        .Child(userData.DisplayName)
+                        .OnceAsJsonAsync();
+
+            // If the string is not null
+            if (!PresentLetter.Contains("null"))
+            {
+                // Add new comma and letter to the string
+                PresentLetter = JsonSerializer.Serialize(PresentLetter + jsonMember);
+
+                // Remove encoded " characters for correct input
+                while (PresentLetter.Contains("\\u0022"))
+                {
+                    var pos = PresentLetter.IndexOf("\\u0022");
+                    PresentLetter = PresentLetter.Remove(pos, 6);
+                }
+            }
+            else
+            {
+                // Otherwise populate it with "P"
+                PresentLetter = JsonSerializer.Serialize("P");
+            }
+
+            // Overwrite data with the new string
+            await firebaseClient
+                        .Child("classes")
+                        .Child(ToBeCheckedIn.ClassId)
+                        .Child("Students")
+                        .Child(userData.DisplayName)
+                        .PutAsync(PresentLetter);
+        }
+        catch (Exception ex)
+        {
+            // Handle errors if logging attendance fails
+            errorMessage = $"Error logging attendance: {ex.Message}";
+        }
+    }
+
     // Redirect to create class page
     private void RedirectToCreateClass()
     {
         Navigation.NavigateTo("/classes/create");
-    }
-
-    // Redirect to check-in page
-    private void RedirectToCheckin()
-    {
-        Navigation.NavigateTo("/checkin");
     }
 
     // Method to sanitize class name for use as collapse id
@@ -423,7 +481,7 @@
                     <!-- Check-in button only shown to students -->
                     @if (!isInstructor)
                     {
-                        <button class="btn btn-primary class-item-button" @onclick="RedirectToCheckin">Check in</button>
+                        <button class="btn btn-primary class-item-button" @onclick="()=>RecordAttendance(classItem)" data-target="classItem">Check in</button>
                     }
                 </div>
 

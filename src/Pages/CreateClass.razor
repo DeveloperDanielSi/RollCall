@@ -101,12 +101,12 @@
     // Handles form submission
     private async Task HandleValidSubmit()
     {
+        // Initialize Firebase client
+        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
+        var firebaseClient = new FirebaseClient(databaseUrl);
+
         try
         {
-            // Initialize Firebase client
-            string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-            var firebaseClient = new FirebaseClient(databaseUrl);
-
             // Parse start and end times
             var startTime = TimeSpan.Parse(classModel.ClassStartTime);
             var endTime = TimeSpan.Parse(classModel.ClassEndTime);
@@ -197,17 +197,17 @@
     }
 }
 
-@if (isInstructor == true)
-{
-    <PageTitle>Create Class</PageTitle>
+<PageTitle>Create Class</PageTitle>
 
-    <h3>Create Class</h3>
+<h3>Create Class</h3>
 
-    <!-- Form to create a new class -->
-    <EditForm Model="@classModel">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+<!-- Form to create a new class -->
+<EditForm Model="@classModel">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
 
+    @if (isInstructor == true)
+    {
         <!-- Class Name input field -->
         <div>
             <label>Class Name:</label>
@@ -274,13 +274,16 @@
             <label>How many minutes is considered absent?</label>
             <InputNumber @bind-Value="classModel.AbsentMinutes" />
         </div>
+    }
 
-        <!-- Checkin Location input field -->
-        <div>
-            <button @onclick="GetLocation" type="button" id="locationButton">Get Current Location</button>
-            <InputText id="target" @bind-Value="classModel.CheckinLocation" readonly="true" />
-        </div>
+    <!-- Checkin Location input field -->
+    <div>
+        <button @onclick="GetLocation" type="button" id="locationButton">Get Current Location</button>
+        <InputText id="target" @bind-Value="classModel.CheckinLocation" readonly="true" />
+    </div>
 
+    @if (isInstructor == true)
+    {
         <!-- Checkin Distance input field -->
         <div>
             <label>What is the maximum distance for check-in (in meters)?</label>
@@ -289,16 +292,11 @@
 
         <!-- Submit button -->
         <button class="btn btn-primary" type="submit" @onclick="HandleValidSubmit">Submit</button>
-    </EditForm>
-
-    <!-- Display error message if any -->
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="alert alert-danger">@errorMessage</div>
     }
-}
-@if (isInstructor == false)
+</EditForm>
+
+<!-- Display error message if any -->
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <!-- Message for non-instructors -->
-    <p>You must be an instructor to create a class. How'd you get here anyways?</p>
+    <div class="alert alert-danger">@errorMessage</div>
 }

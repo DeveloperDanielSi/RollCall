@@ -1,28 +1,319 @@
 ﻿@page "/reporting"
+@using Firebase.Database
+@using Firebase.Database.Query
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
 @code {
-     /*
-     * CreateClasses will generate an google sheet utilizing the end date of the class and days selected to populate the sheet with the dates of the class up until the end of the class.
-     * The sheet will be populated with the dates of the class and the students that are enrolled in the class.
-     * Then when we implement thecheck in feature we will be able to populate the sheet with the attendance of the students. That way we can establish a record of attendance for each student.
-     * To pull that data we will have a second sheet that keeps track of the attendance of each student (ie, absceneces, tardies, and present days).
-    */
+    private bool isInstructor;
+    private UserData userData = new UserData();
+    private List<ClassData> classes = new List<ClassData>();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
 
-   /*
-    * Location Testing
-    */
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    public class UserData
     {
-        if (firstRender)
+        public string Email { get; set; } = string.Empty;
+        public string UID { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+    }
+
+    public class ClassData
+    {
+        public string ClassId { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public string CreatorEmail { get; set; } = string.Empty;
+        public Dictionary<string, string> Students { get; set; } = new Dictionary<string, string>();
+        public bool IsEditing { get; set; } = false;
+        public Dictionary<string, string> EditedStudents { get; set; } = new Dictionary<string, string>();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+        await LoadClasses();
+    }
+
+    private async Task LoadUserData()
+    {
+        try
         {
-            await JSRuntime.InvokeVoidAsync("locationTesting.initialize");
+            userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+            isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading user data: {ex.Message}";
         }
     }
+
+    private async Task LoadClasses()
+    {
+        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
+
+        try
+        {
+            if (isInstructor)
+            {
+                var allClasses = await firebaseClient
+                    .Child("classes")
+                    .OnceAsync<ClassData>();
+
+                classes = allClasses
+                    .Where(c => c.Object.CreatorEmail == userData.Email)
+                    .Select(c => new ClassData
+                        {
+                            ClassId = c.Key,
+                            ClassName = c.Object.ClassName,
+                            CreatorEmail = c.Object.CreatorEmail,
+                            Students = c.Object.Students
+                        }).ToList();
+            }
+            else
+            {
+                var studentClasses = await firebaseClient
+                    .Child("users")
+                    .Child(userData.UID)
+                    .Child("classes")
+                    .OnceAsync<string>();
+
+                var enrolledClassIds = studentClasses.Select(sc => sc.Key).ToList();
+
+                foreach (var classId in enrolledClassIds)
+                {
+                    var classData = await firebaseClient
+                        .Child("classes")
+                        .Child(classId)
+                        .OnceSingleAsync<ClassData>();
+
+                    classData.ClassId = classId;
+                    classes.Add(classData);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading classes: {ex.Message}";
+        }
+    }
+
+    private void EditClass(string classId)
+    {
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+
+        if (classData != null)
+        {
+            classData.IsEditing = true;
+            classData.EditedStudents = new Dictionary<string, string>(classData.Students);
+        }
+    }
+
+    private async Task SaveClass(string classId)
+    {
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+        if (classData != null)
+        {
+            var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
+            try
+            {
+                // Save changes to the database
+                await firebaseClient
+                    .Child("classes")
+                    .Child(classId)
+                    .Child("Students")
+                    .PutAsync(classData.EditedStudents);
+
+                classData.Students = new Dictionary<string, string>(classData.EditedStudents);
+                classData.IsEditing = false;
+                successMessage = "Class data saved successfully!";
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error saving class data: {ex.Message}";
+            }
+        }
+    }
+
+    private void CancelEdit(string classId)
+    {
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+        if (classData != null)
+        {
+            classData.IsEditing = false;
+            classData.EditedStudents.Clear();
+        }
+    }
+
+    private async Task ExportCSV(string classId)
+    {
+        // Placeholder for Export CSV functionality
+        await Task.CompletedTask;
+    }
+
+    private async Task ImportCSV(string classId)
+    {
+        // Placeholder for Import CSV functionality
+        await Task.CompletedTask;
+    }
+
+    private async Task ToggleClassDetails(string className)
+    {
+        await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
+    }
+
+    string SanitizeClassName(string className)
+    {
+        return className.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
+    }
+
+    int CountOccurrences(string input, char target)
+    {
+        return input.Count(c => c == target);
+    }
+
+    private void UpdateAttendance(string classId, string studentName, int index, string value)
+    {
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+        if (classData != null && classData.EditedStudents.ContainsKey(studentName))
+        {
+            var attendanceList = classData.EditedStudents[studentName].Split(',');
+            attendanceList[index] = value;
+
+            // Calculate new length based on the rules
+            int newLength = attendanceList.Sum(entry => entry.Length) * 2 + 1;
+
+            // Limit each entry to one character and convert to uppercase
+            for (int i = 0; i < attendanceList.Length; i++)
+            {
+                attendanceList[i] = attendanceList[i].Length > 0 ? attendanceList[i][0].ToString().ToUpper() : string.Empty;
+            }
+
+            classData.EditedStudents[studentName] = string.Join(",", attendanceList);
+        }
+    }
+
 }
 
 <PageTitle>Reporting</PageTitle>
 
-<button id="locationButton">Ask for Location</button>
-<div id="target"></div>
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success" style="white-space: pre-wrap;">
+        @((MarkupString)successMessage)
+    </div>
+}
+
+<ul class="list-group">
+    @foreach (var classItem in classes)
+    {
+        <li class="list-group-item">
+            @{
+                var sanitizedClassName = SanitizeClassName(classItem.ClassName);
+            }
+
+            <div class="class-item-container">
+                <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                    @classItem.ClassName
+                </a>
+
+                <div class="class-item-buttons">
+                    @if (classItem.IsEditing)
+                    {
+                        <button class="btn btn-success" @onclick="() => SaveClass(classItem.ClassId)">Save</button>
+                        <button class="btn btn-secondary" @onclick="() => CancelEdit(classItem.ClassId)">Cancel</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-warning" @onclick="() => EditClass(classItem.ClassId)">Edit</button>
+                        <button class="btn btn-secondary" @onclick="() => ExportCSV(classItem.ClassId)">Export CSV</button>
+                        <button class="btn btn-secondary" @onclick="() => ImportCSV(classItem.ClassId)">Import CSV</button>
+                    }
+                </div>
+            </div>
+
+            <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
+                <div class="card card-body table-responsive" style="max-width: calc(100vw - 20px - var(--layout-sidebar-compact-width)); max-height: 300px;">
+                    @if (classItem.IsEditing)
+                    {
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Student</th>
+                                    @foreach (var date in classItem.EditedStudents.ContainsKey("Dates") ? classItem.EditedStudents["Dates"].Split(',') : new string[0])
+                                    {
+                                        <th scope="col">@date</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var student in classItem.EditedStudents)
+                                {
+                                    if (student.Key != "Dates")
+                                    {
+                                        <tr>
+                                            <td>@student.Key</td>
+                                            @{
+                                                var dates = classItem.EditedStudents.ContainsKey("Dates") ? classItem.EditedStudents["Dates"].Split(',') : new string[0];
+                                                var attendanceList = student.Value.Split(',').ToList();
+
+                                                // Ensure attendanceList has the same number of entries as dates
+                                                while (attendanceList.Count < dates.Length)
+                                                {
+                                                    attendanceList.Add(string.Empty);
+                                                }
+                                            }
+                                            @for (int i = 0; i < dates.Length; i++)
+                                            {
+                                                // Capture the current value of i in a local variable
+                                                var currentIndex = i;
+
+                                                <td>
+                                                    <input type="text" value="@attendanceList[currentIndex]" @oninput="(e) => { attendanceList[currentIndex] = e.Value.ToString(); classItem.EditedStudents[student.Key] = string.Join(',', attendanceList); }" class="form-control" />
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Student</th>
+                                    <th scope="col">Presents</th>
+                                    <th scope="col">Tardies</th>
+                                    <th scope="col">Absences</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var student in classItem.Students)
+                                {
+                                    if (student.Key != "Dates")
+                                    {
+                                        <tr>
+                                            <td>@student.Key</td>
+                                            <td>@CountOccurrences(student.Value, 'P')</td>
+                                            <td>@CountOccurrences(student.Value, 'T')</td>
+                                            <td>@CountOccurrences(student.Value, 'A')</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </li>
+    }
+</ul>
