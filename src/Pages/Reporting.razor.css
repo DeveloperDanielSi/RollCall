@@ -1,0 +1,38 @@
+﻿.class-item-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.class-item-link {
+    margin-right: auto; /* Ensures the link stays on the left */
+    text-decoration: none;
+    color: #007bff;
+    cursor: pointer;
+}
+
+.class-item-link:hover {
+    text-decoration: underline;
+}
+
+.class-item-buttons {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+}
+
+.class-item-buttons button {
+    padding: 5px 10px;
+}
+
+.class-item-buttons .btn-warning {
+    background-color: orange;
+    border-color: orange;
+    color: white;
+}
+
+.class-item-buttons .btn-secondary {
+    background-color: gray;
+    border-color: gray;
+    color: white;
+}
