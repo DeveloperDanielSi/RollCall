@@ -3,6 +3,7 @@
 @using Firebase.Database.Query
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Text
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -149,14 +150,95 @@
 
     private async Task ExportCSV(string classId)
     {
-        // Placeholder for Export CSV functionality
-        await Task.CompletedTask;
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+
+        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
+        try
+        {
+            // Save changes to the database
+            await firebaseClient
+                .Child("classes")
+                .Child(classId)
+                .Child("Students")
+                .OnceAsync<string>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving class data: {ex.Message}";
+        }
+
+        if (classData != null)
+        {
+            // Retrieve the dates
+            string[] dates = new string[0];
+            if (classData.Students.ContainsKey("Dates"))
+            {
+                dates = classData.Students["Dates"].Split(',');
+            }
+
+            // Start building the CSV string with the Dates entry
+            var csvString = "Dates," + string.Join(",", dates) + "\n";
+
+            // Add each student's attendance data
+            foreach (var student in classData.Students)
+            {
+                if (student.Key != "Dates")
+                {
+                    var attendanceList = student.Value.Split(',').ToList();
+
+                    // Ensure attendanceList has the same number of entries as dates
+                    while (attendanceList.Count < dates.Length)
+                    {
+                        attendanceList.Add(string.Empty);
+                    }
+
+                    // Add the student's data to the CSV string
+                    csvString += $"{student.Key}," + string.Join(",", attendanceList) + "\n";
+                }
+            }
+
+            // Debugging output for final CSV string
+            Console.WriteLine("CSV Output:\n" + csvString);
+
+            // Invoke the JavaScript function to download the CSV
+            await JSRuntime.InvokeVoidAsync("downloadCSV", $"{classData.ClassName}.csv", csvString);
+        }
     }
 
     private async Task ImportCSV(string classId)
     {
-        // Placeholder for Import CSV functionality
-        await Task.CompletedTask;
+        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
+        if (classData != null)
+        {
+            try
+            {
+                // Use JS to upload and read the CSV file
+                var csvContent = await JSRuntime.InvokeAsync<string>("uploadCSV");
+                var lines = csvContent.Split('\n');
+
+                // Process the CSV content
+                var dates = lines[0].Split(',').Skip(1).ToArray();
+                classData.EditedStudents["Dates"] = string.Join(",", dates);
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    var values = lines[i].Split(',');
+                    if (values.Length > 1)
+                    {
+                        var studentName = values[0];
+                        var attendance = string.Join(",", values.Skip(1));
+                        classData.EditedStudents[studentName] = attendance;
+                    }
+                }
+
+                // Save the updated data to Firebase
+                await SaveClass(classId);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error importing CSV: {ex.Message}";
+            }
+        }
     }
 
     private async Task ToggleClassDetails(string className)
@@ -194,7 +276,6 @@
             classData.EditedStudents[studentName] = string.Join(",", attendanceList);
         }
     }
-
 }
 
 <PageTitle>Reporting</PageTitle>

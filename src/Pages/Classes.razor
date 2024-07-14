@@ -243,7 +243,7 @@
                     .Child(classId)
                     .Child("StudentsEnrolled")
                     .Child(userData.UID)
-                    .PutAsync(JsonSerializer.Serialize(initializeStudent));
+                    .PutAsync(JsonSerializer.Serialize(""));
 
                 // Provide success message and reload classes
                 successMessage = "Class joined successfully!";
