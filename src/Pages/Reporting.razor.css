@@ -36,3 +36,20 @@
     border-color: gray;
     color: white;
 }
+
+.class-item-details {
+    overflow-x: auto; /* Enable horizontal scrolling */
+    white-space: nowrap; /* Prevent wrapping of table content */
+}
+
+.table-responsive {
+    display: block; /* Ensure the table is block level */
+    overflow-x: auto; /* Enable horizontal scrolling for the table */
+    width: 100%; /* Make sure it takes the full width */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.table {
+    min-width: 100%; /* Ensure the table has at least the container's width */
+}
+

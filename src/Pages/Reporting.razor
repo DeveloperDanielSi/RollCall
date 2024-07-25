@@ -3,7 +3,7 @@
 @using Firebase.Database.Query
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Text
+@using System.Text.Json
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
@@ -53,47 +53,18 @@
 
     private async Task LoadClasses()
     {
-        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
         try
         {
-            if (isInstructor)
-            {
-                var allClasses = await firebaseClient
-                    .Child("classes")
-                    .OnceAsync<ClassData>();
+            var classesJson = await JSRuntime.InvokeAsync<string>("loadClassesReporting", userData, isInstructor);
+            Console.WriteLine("Classes JSON: " + classesJson);
 
-                classes = allClasses
-                    .Where(c => c.Object.CreatorEmail == userData.Email)
-                    .Select(c => new ClassData
-                        {
-                            ClassId = c.Key,
-                            ClassName = c.Object.ClassName,
-                            CreatorEmail = c.Object.CreatorEmail,
-                            Students = c.Object.Students
-                        }).ToList();
-            }
-            else
-            {
-                var studentClasses = await firebaseClient
-                    .Child("users")
-                    .Child(userData.UID)
-                    .Child("classes")
-                    .OnceAsync<string>();
-
-                var enrolledClassIds = studentClasses.Select(sc => sc.Key).ToList();
-
-                foreach (var classId in enrolledClassIds)
+            var options = new JsonSerializerOptions
                 {
-                    var classData = await firebaseClient
-                        .Child("classes")
-                        .Child(classId)
-                        .OnceSingleAsync<ClassData>();
+                    PropertyNameCaseInsensitive = true
+                };
 
-                    classData.ClassId = classId;
-                    classes.Add(classData);
-                }
-            }
+            classes = JsonSerializer.Deserialize<List<ClassData>>(classesJson, options);
+            Console.WriteLine("Loaded Classes: " + JsonSerializer.Serialize(classes, options));
         }
         catch (Exception ex)
         {
@@ -117,19 +88,11 @@
         var classData = classes.FirstOrDefault(c => c.ClassId == classId);
         if (classData != null)
         {
-            var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
             try
             {
-                // Save changes to the database
-                await firebaseClient
-                    .Child("classes")
-                    .Child(classId)
-                    .Child("Students")
-                    .PutAsync(classData.EditedStudents);
-
+                successMessage = await JSRuntime.InvokeAsync<string>("saveClass", classId, classData.EditedStudents);
                 classData.Students = new Dictionary<string, string>(classData.EditedStudents);
                 classData.IsEditing = false;
-                successMessage = "Class data saved successfully!";
             }
             catch (Exception ex)
             {
@@ -150,58 +113,13 @@
 
     private async Task ExportCSV(string classId)
     {
-        var classData = classes.FirstOrDefault(c => c.ClassId == classId);
-
-        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
         try
         {
-            // Save changes to the database
-            await firebaseClient
-                .Child("classes")
-                .Child(classId)
-                .Child("Students")
-                .OnceAsync<string>();
+            await JSRuntime.InvokeVoidAsync("exportCSV", classId);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error saving class data: {ex.Message}";
-        }
-
-        if (classData != null)
-        {
-            // Retrieve the dates
-            string[] dates = new string[0];
-            if (classData.Students.ContainsKey("Dates"))
-            {
-                dates = classData.Students["Dates"].Split(',');
-            }
-
-            // Start building the CSV string with the Dates entry
-            var csvString = "Dates," + string.Join(",", dates) + "\n";
-
-            // Add each student's attendance data
-            foreach (var student in classData.Students)
-            {
-                if (student.Key != "Dates")
-                {
-                    var attendanceList = student.Value.Split(',').ToList();
-
-                    // Ensure attendanceList has the same number of entries as dates
-                    while (attendanceList.Count < dates.Length)
-                    {
-                        attendanceList.Add(string.Empty);
-                    }
-
-                    // Add the student's data to the CSV string
-                    csvString += $"{student.Key}," + string.Join(",", attendanceList) + "\n";
-                }
-            }
-
-            // Debugging output for final CSV string
-            Console.WriteLine("CSV Output:\n" + csvString);
-
-            // Invoke the JavaScript function to download the CSV
-            await JSRuntime.InvokeVoidAsync("downloadCSV", $"{classData.ClassName}.csv", csvString);
+            errorMessage = $"Error exporting CSV: {ex.Message}";
         }
     }
 
@@ -212,13 +130,11 @@
         {
             try
             {
-                // Use JS to upload and read the CSV file
                 var csvContent = await JSRuntime.InvokeAsync<string>("uploadCSV");
                 var lines = csvContent.Split('\n');
 
-                // Process the CSV content
                 var dates = lines[0].Split(',').Skip(1).ToArray();
-                classData.EditedStudents["Dates"] = string.Join(",", dates);
+                classData.EditedStudents["dates"] = string.Join(",", dates);
 
                 for (int i = 1; i < lines.Length; i++)
                 {
@@ -231,7 +147,6 @@
                     }
                 }
 
-                // Save the updated data to Firebase
                 await SaveClass(classId);
             }
             catch (Exception ex)
@@ -264,10 +179,8 @@
             var attendanceList = classData.EditedStudents[studentName].Split(',');
             attendanceList[index] = value;
 
-            // Calculate new length based on the rules
             int newLength = attendanceList.Sum(entry => entry.Length) * 2 + 1;
 
-            // Limit each entry to one character and convert to uppercase
             for (int i = 0; i < attendanceList.Length; i++)
             {
                 attendanceList[i] = attendanceList[i].Length > 0 ? attendanceList[i][0].ToString().ToUpper() : string.Empty;
@@ -292,109 +205,164 @@
     </div>
 }
 
-<ul class="list-group">
-    @foreach (var classItem in classes)
-    {
-        <li class="list-group-item">
-            @{
-                var sanitizedClassName = SanitizeClassName(classItem.ClassName);
-            }
+@if (isInstructor == true)
+{
+    <ul class="list-group">
+        @foreach (var classItem in classes)
+        {
+            <li class="list-group-item">
+                @{
+                    var sanitizedClassName = SanitizeClassName(classItem.ClassName);
+                }
 
-            <div class="class-item-container">
-                <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
-                    @classItem.ClassName
-                </a>
+                <div class="class-item-container">
+                    <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                        @classItem.ClassName
+                    </a>
 
-                <div class="class-item-buttons">
-                    @if (classItem.IsEditing)
-                    {
-                        <button class="btn btn-success" @onclick="() => SaveClass(classItem.ClassId)">Save</button>
-                        <button class="btn btn-secondary" @onclick="() => CancelEdit(classItem.ClassId)">Cancel</button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-warning" @onclick="() => EditClass(classItem.ClassId)">Edit</button>
-                        <button class="btn btn-secondary" @onclick="() => ExportCSV(classItem.ClassId)">Export CSV</button>
-                        <button class="btn btn-secondary" @onclick="() => ImportCSV(classItem.ClassId)">Import CSV</button>
-                    }
+                    <div class="class-item-buttons">
+                        @if (classItem.IsEditing)
+                        {
+                            <button class="btn btn-success" @onclick="() => SaveClass(classItem.ClassId)">Save</button>
+                            <button class="btn btn-secondary" @onclick="() => CancelEdit(classItem.ClassId)">Cancel</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-warning" @onclick="() => EditClass(classItem.ClassId)">Edit</button>
+                            <button class="btn btn-secondary" @onclick="() => ExportCSV(classItem.ClassId)">Export CSV</button>
+                            <button class="btn btn-secondary" @onclick="() => ImportCSV(classItem.ClassId)">Import CSV</button>
+                        }
+                    </div>
                 </div>
-            </div>
 
-            <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
-                <div class="card card-body table-responsive" style="max-width: calc(100vw - 20px - var(--layout-sidebar-compact-width)); max-height: 300px;">
-                    @if (classItem.IsEditing)
-                    {
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Student</th>
-                                    @foreach (var date in classItem.EditedStudents.ContainsKey("Dates") ? classItem.EditedStudents["Dates"].Split(',') : new string[0])
+                <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
+                    <div class="card card-body table-responsive" style="max-width: calc(100vw - 20px - var(--layout-sidebar-compact-width)); max-height: 300px;">
+                        @if (classItem.IsEditing)
+                        {
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Student</th>
+                                        @foreach (var date in classItem.EditedStudents.ContainsKey("dates") ? classItem.EditedStudents["dates"].Split(',') : new string[0])
+                                        {
+                                            <th scope="col">@date</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var student in classItem.EditedStudents)
                                     {
-                                        <th scope="col">@date</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var student in classItem.EditedStudents)
-                                {
-                                    if (student.Key != "Dates")
-                                    {
-                                        <tr>
-                                            <td>@student.Key</td>
-                                            @{
-                                                var dates = classItem.EditedStudents.ContainsKey("Dates") ? classItem.EditedStudents["Dates"].Split(',') : new string[0];
-                                                var attendanceList = student.Value.Split(',').ToList();
+                                        if (student.Key != "dates")
+                                        {
+                                            <tr>
+                                                <td>@student.Key</td>
+                                                @{
+                                                    var dates = classItem.EditedStudents.ContainsKey("dates") ? classItem.EditedStudents["dates"].Split(',') : new string[0];
+                                                    var attendanceList = student.Value.Split(',').ToList();
 
-                                                // Ensure attendanceList has the same number of entries as dates
-                                                while (attendanceList.Count < dates.Length)
-                                                {
-                                                    attendanceList.Add(string.Empty);
+                                                    while (attendanceList.Count < dates.Length)
+                                                    {
+                                                        attendanceList.Add(string.Empty);
+                                                    }
                                                 }
-                                            }
-                                            @for (int i = 0; i < dates.Length; i++)
-                                            {
-                                                // Capture the current value of i in a local variable
-                                                var currentIndex = i;
-
-                                                <td>
-                                                    <input type="text" value="@attendanceList[currentIndex]" @oninput="(e) => { attendanceList[currentIndex] = e.Value.ToString(); classItem.EditedStudents[student.Key] = string.Join(',', attendanceList); }" class="form-control" />
-                                                </td>
-                                            }
-                                        </tr>
+                                                @for (int i = 0; i < dates.Length; i++)
+                                                {
+                                                    var currentIndex = i;
+                                                    <td>
+                                                        <input type="text" value="@attendanceList[currentIndex]" @oninput="(e) => { attendanceList[currentIndex] = e.Value.ToString(); classItem.EditedStudents[student.Key] = string.Join(',', attendanceList); }" class="form-control" />
+                                                    </td>
+                                                }
+                                            </tr>
+                                        }
                                     }
-                                }
-                            </tbody>
-                        </table>
-                    }
-                    else
-                    {
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Student</th>
+                                        <th scope="col">On Time</th>
+                                        <th scope="col">Late Arrivals</th>
+                                        <th scope="col">Absences</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var student in classItem.Students)
+                                    {
+                                        if (student.Key != "dates")
+                                        {
+                                            <tr>
+                                                <td>@student.Key</td>
+                                                <td>@CountOccurrences(student.Value, 'O')</td>
+                                                <td>@CountOccurrences(student.Value, 'L')</td>
+                                                <td>@CountOccurrences(student.Value, 'A')</td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                </div>
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var classItem in classes)
+        {
+            var sanitizedClassName = SanitizeClassName(classItem.ClassName);
+
+            <li class="list-group-item">
+                <div class="class-item-container">
+                    <a class="btn btn-link class-item-link" href="javascript:void(0);" role="button" aria-expanded="false" aria-controls="collapse-@sanitizedClassName" @onclick="() => ToggleClassDetails(sanitizedClassName)">
+                        @classItem.ClassName
+                    </a>
+                </div>
+
+                <div class="collapse class-item-details" id="collapse-@sanitizedClassName">
+                    <div class="card card-body table-responsive" style="max-width: calc(100vw - 20px - var(--layout-sidebar-compact-width)); max-height: 300px;">
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr>
-                                    <th scope="col">Student</th>
-                                    <th scope="col">Presents</th>
-                                    <th scope="col">Tardies</th>
-                                    <th scope="col">Absences</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Count</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var student in classItem.Students)
+                                @if (classItem.Students.ContainsKey(userData.DisplayName))
                                 {
-                                    if (student.Key != "Dates")
-                                    {
-                                        <tr>
-                                            <td>@student.Key</td>
-                                            <td>@CountOccurrences(student.Value, 'P')</td>
-                                            <td>@CountOccurrences(student.Value, 'T')</td>
-                                            <td>@CountOccurrences(student.Value, 'A')</td>
-                                        </tr>
-                                    }
+                                    var studentAttendance = classItem.Students[userData.DisplayName];
+                                    <tr>
+                                        <td>On Time</td>
+                                        <td>@CountOccurrences(studentAttendance, 'O')</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Late Arrivals</td>
+                                        <td>@CountOccurrences(studentAttendance, 'L')</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Absences</td>
+                                        <td>@CountOccurrences(studentAttendance, 'A')</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="2">No attendance data available</td>
+                                    </tr>
                                 }
                             </tbody>
                         </table>
-                    }
+                    </div>
                 </div>
-            </div>
-        </li>
-    }
-</ul>
+            </li>
+        }
+    </ul>
+}
+

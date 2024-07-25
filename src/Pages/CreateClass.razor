@@ -94,17 +94,13 @@
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("locationTesting.initialize");
+            await JSRuntime.InvokeVoidAsync("geoLocation.initialize");
         }
     }
 
     // Handles form submission
     private async Task HandleValidSubmit()
     {
-        // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
-
         try
         {
             // Parse start and end times
@@ -145,18 +141,17 @@
             var jsonMember = JsonSerializer.Serialize(csvData);
 
             // Save class data to Firebase Realtime Database
-            await firebaseClient
-                .Child("classes")
-                .Child(uid)
-                .PutAsync(classData);
+            try
+            {
+                await JSRuntime.InvokeAsync<object>("saveClassData", uid, classData, csvData);
 
-            // Store CSV data in Firebase Realtime Database under "Dates" node
-            await firebaseClient
-                .Child("classes")
-                .Child(uid)
-                .Child("Students")
-                .Child("Dates")
-                .PutAsync(jsonMember);
+                Console.WriteLine("Class and CSV data saved successfully.");
+                Navigation.NavigateTo("/classes");
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error: {ex.Message}";
+            }
 
             Console.WriteLine("Class successfully created and pushed to Firebase.");
             Navigation.NavigateTo("/classes");
@@ -191,7 +186,7 @@
     // Get current location
     private async Task GetLocation()
     {
-        classModel.CheckinLocation = await JSRuntime.InvokeAsync<string>("locationTesting.getTarget");
+        classModel.CheckinLocation = await JSRuntime.InvokeAsync<string>("geoLocation.getTarget");
         StateHasChanged();
         Console.WriteLine($"Location: {classModel.CheckinLocation}");
     }

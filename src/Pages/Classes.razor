@@ -39,6 +39,8 @@
         public List<string> SelectedDays { get; set; } = new List<string>();
         public string ClassStartTime { get; set; } = string.Empty;
         public string ClassEndTime { get; set; } = string.Empty;
+        public string CheckinLocation { get; set; } = string.Empty;
+        public int CheckinDistance { get; set; } = 0;
         public DateTime ClassStartDate { get; set; } = DateTime.Now;
         public DateTime ClassEndDate { get; set; } = DateTime.Now;
         public int LateMinutes { get; set; } = 0;
@@ -46,7 +48,6 @@
         public string CreatorEmail { get; set; } = string.Empty;
         public Dictionary<string, string> Students { get; set; } = new Dictionary<string, string>();
     }
-
 
     // Generated invite model
     public class GeneratedInvite
@@ -61,6 +62,15 @@
         // Load user data and check if user is instructor
         await LoadUserData();
         await LoadClasses();
+    }
+
+    // Initialize geolocation service
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("geoLocation.initialize");
+        }
     }
 
     // Load user data using JavaScript interop
@@ -83,58 +93,17 @@
     // Load classes based on user type (instructor or student)
     private async Task LoadClasses()
     {
-        // Initialize Firebase client
-        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
         try
         {
             if (isInstructor)
             {
-                // Fetch all classes created by the instructor
-                var allClasses = await firebaseClient
-                    .Child("classes")
-                    .OnceAsync<ClassData>();
-
-                // Filter classes where the creator email matches the current user
-                classes = allClasses
-                    .Where(c => c.Object.CreatorEmail == userData.Email)
-                    .Select(c => new ClassData
-                        {
-                            ClassId = c.Key,
-                            ClassName = c.Object.ClassName,
-                            SelectedDays = c.Object.SelectedDays,
-                            ClassStartTime = c.Object.ClassStartTime,
-                            ClassEndTime = c.Object.ClassEndTime,
-                            ClassStartDate = c.Object.ClassStartDate,
-                            ClassEndDate = c.Object.ClassEndDate,
-                            LateMinutes = c.Object.LateMinutes,
-                            AbsentMinutes = c.Object.AbsentMinutes,
-                            CreatorEmail = c.Object.CreatorEmail
-                        }).ToList();
+                // Call JavaScript function to get classes created by the instructor
+                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesByInstructor", userData.Email);
             }
             else
             {
-                // Fetch classes the student is enrolled in
-                var studentClasses = await firebaseClient
-                    .Child("users")
-                    .Child(userData.UID)
-                    .Child("classes")
-                    .OnceAsync<string>();
-
-                var enrolledClassIds = studentClasses.Select(sc => sc.Key).ToList();
-
-                foreach (var classId in enrolledClassIds)
-                {
-                    // Retrieve class data for each enrolled class
-                    var classData = await firebaseClient
-                        .Child("classes")
-                        .Child(classId)
-                        .OnceSingleAsync<ClassData>();
-
-                    // Assign class ID and add to the list of classes
-                    classData.ClassId = classId;
-                    classes.Add(classData);
-                }
+                // Call JavaScript function to get classes for the student
+                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesForStudent", userData.UID);
             }
         }
         catch (Exception ex)
@@ -147,28 +116,31 @@
     // Generate invite code for a specific class
     private async Task GenerateInviteCode(string classId, string className)
     {
-        // Initialize Firebase client
-        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
         try
         {
-            // Generate a new unique invite code
-            inviteCode = Guid.NewGuid().ToString();
+            // Call JavaScript function to generate invite code
+            var result = await JSRuntime.InvokeAsync<InviteCodeResult>("generateInviteCode", classId, className);
 
-            // Store invite code in Firebase with class ID and expiry time
-            await firebaseClient
-                .Child("inviteCodes")
-                .Child(inviteCode)
-                .PutAsync(new { ClassId = classId, Expiry = DateTime.UtcNow.AddHours(4) });
-
-            // Provide success message with generated invite code
-            successMessage = $"Invite link successfully generated for {className}: {inviteCode}<br/>";
+            if (result.errorMessage != null)
+            {
+                errorMessage = result.errorMessage;
+            }
+            else
+            {
+                successMessage = result.successMessage;
+            }
         }
         catch (Exception ex)
         {
-            // Handle errors if invite code generation fails
-            errorMessage = $"Error generating invite code: {ex.Message}";
+            errorMessage = $"Error calling JavaScript function: {ex.Message}";
         }
+    }
+
+    public class InviteCodeResult
+    {
+        public string inviteCode { get; set; }
+        public string successMessage { get; set; }
+        public string errorMessage { get; set; }
     }
 
     // Refreshes the class list after joining a class but doesn't populate classes already loaded
@@ -192,113 +164,46 @@
     // Join a class using an invite code
     private async Task JoinClass()
     {
-        // Initialize Firebase client
-        var firebaseClient = new FirebaseClient("https://rollcall-4f68e-default-rtdb.firebaseio.com");
-
         try
         {
-            string initializeStudent = "";
+            // Call JavaScript function to join the class
+            var result = await JSRuntime.InvokeAsync<JoinClassResult>("joinClass", joinClassCode, userData.UID, userData.DisplayName);
 
-            // Fetch invite details using the provided invite code
-            var invite = await firebaseClient
-                .Child("inviteCodes")
-                .Child(joinClassCode)
-                .OnceSingleAsync<dynamic>();
-
-            // Check if invite exists and is not expired
-            if (invite != null && DateTime.Parse(invite.Expiry.ToString()) > DateTime.UtcNow)
+            if (!string.IsNullOrEmpty(result.errorMessage))
             {
-                // Retrieve class ID from the invite
-                string classId = invite.ClassId;
-
-                // Fetch the class dates
-                var classData = await firebaseClient
-                    .Child("classes")
-                    .Child(classId)
-                    .OnceSingleAsync<ClassData>();
-
-                // Initialize student's attendance string with the correct number of commas
-                var dates = classData.Students.ContainsKey("Dates") ? classData.Students["Dates"].Split(',') : new string[0];
-                initializeStudent = new string(',', Math.Max(0, dates.Length - 1));
-
-                // Add the class to the student's list of enrolled classes
-                await firebaseClient
-                    .Child("users")
-                    .Child(userData.UID)
-                    .Child("classes")
-                    .Child(classId)
-                    .PutAsync(true);
-
-                // Add student's display name to the class's student list
-                await firebaseClient
-                    .Child("classes")
-                    .Child(classId)
-                    .Child("Students")
-                    .Child(userData.DisplayName)
-                    .PutAsync(JsonSerializer.Serialize(initializeStudent));
-
-                // Add student's UID to the class's enrolled students list
-                await firebaseClient
-                    .Child("classes")
-                    .Child(classId)
-                    .Child("StudentsEnrolled")
-                    .Child(userData.UID)
-                    .PutAsync(JsonSerializer.Serialize(""));
-
-                // Provide success message and reload classes
-                successMessage = "Class joined successfully!";
-                await RefreshClassList();
+                errorMessage = result.errorMessage;
             }
             else
             {
-                // Notify user if invite code is invalid or expired
-                errorMessage = "Invalid or expired invite code.";
+                successMessage = result.successMessage;
+                await RefreshClassList();
             }
         }
         catch (Exception ex)
         {
-            // Handle errors if joining class fails
-            errorMessage = $"Error joining class: {ex.Message}";
+            errorMessage = $"Error calling JavaScript function: {ex.Message}";
         }
     }
 
-    // Delete a class, with a prompt verifying if that actually want to delete {ClassName}, it will also remove the class from the student's list of enrolled classes
+    // Result model for the JavaScript function
+    public class JoinClassResult
+    {
+        public string successMessage { get; set; } = string.Empty;
+        public string errorMessage { get; set; } = string.Empty;
+    }
+
+    // Delete a class and remove it from all enrolled students' lists
     private async Task DeleteClass(string classId, string className)
     {
-        // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
-
         try
         {
-            // Fetch all user UIDs from Firebase
-            var userUids = await firebaseClient
-                .Child("classes")
-                .Child(classId)
-                .Child("StudentsEnrolled")
-                .OnceAsync<List<string>>();
-
             // Prompt user to confirm class deletion
             var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete {className}?");
 
             if (confirmDelete)
             {
-                // Remove class from Firebase Realtime Database
-                await firebaseClient
-                    .Child("classes")
-                    .Child(classId)
-                    .DeleteAsync();
-
-                // Remove class from each user's list of enrolled classes
-                foreach (var user in userUids)
-                {
-                    await firebaseClient
-                        .Child("users")
-                        .Child(user.Key)
-                        .Child("classes")
-                        .Child(classId)
-                        .DeleteAsync();
-                }
+                // Call JavaScript function to handle class deletion
+                await JSRuntime.InvokeVoidAsync("deleteClass", classId);
 
                 // Provide success message and reload classes
                 successMessage = "Class deleted successfully!";
@@ -312,59 +217,47 @@
         }
     }
 
-    // Redirect to check-in page
-    private async Task RecordAttendance(ClassData ToBeCheckedIn)
+    // Result model for the JavaScript function
+    public class DeleteClassResult
     {
-        // Initialize Firebase client
-        string databaseUrl = "https://rollcall-4f68e-default-rtdb.firebaseio.com";
-        var firebaseClient = new FirebaseClient(databaseUrl);
+        public string successMessage { get; set; } = string.Empty;
+        public string errorMessage { get; set; } = string.Empty;
+    }
 
-        // Make the string json serialized so it stops complaining
-        var jsonMember = JsonSerializer.Serialize(",P");
-
-        // Adding Attendance char to async
+    // Record attendance for a specific cl
+    private async Task RecordAttendance(ClassData classData)
+    {
         try
         {
-            // Read current string in async to PresentLetter
-            var PresentLetter = await firebaseClient
-                        .Child("classes")
-                        .Child(ToBeCheckedIn.ClassId)
-                        .Child("Students")
-                        .Child(userData.DisplayName)
-                        .OnceAsJsonAsync();
+            // Log the CheckinDistance value for debugging
+            Console.WriteLine($"ClassData.CheckinDistance: {classData.CheckinDistance}");
 
-            // If the string is not null
-            if (!PresentLetter.Contains("null"))
+            string tempLocation = await JSRuntime.InvokeAsync<string>("geoLocation.getTarget");
+            StateHasChanged();
+            Console.WriteLine($"Location: {tempLocation}");
+
+            var result = await JSRuntime.InvokeAsync<RecordAttendanceResult>("recordAttendance", classData.ClassId, userData.UID, userData.DisplayName, tempLocation);
+
+            if (!string.IsNullOrEmpty(result.errorMessage))
             {
-                // Add new comma and letter to the string
-                PresentLetter = JsonSerializer.Serialize(PresentLetter + jsonMember);
-
-                // Remove encoded " characters for correct input
-                while (PresentLetter.Contains("\\u0022"))
-                {
-                    var pos = PresentLetter.IndexOf("\\u0022");
-                    PresentLetter = PresentLetter.Remove(pos, 6);
-                }
+                errorMessage = result.errorMessage;
             }
             else
             {
-                // Otherwise populate it with "P"
-                PresentLetter = JsonSerializer.Serialize("P");
+                successMessage = result.successMessage;
             }
-
-            // Overwrite data with the new string
-            await firebaseClient
-                        .Child("classes")
-                        .Child(ToBeCheckedIn.ClassId)
-                        .Child("Students")
-                        .Child(userData.DisplayName)
-                        .PutAsync(PresentLetter);
         }
         catch (Exception ex)
         {
-            // Handle errors if logging attendance fails
-            errorMessage = $"Error logging attendance: {ex.Message}";
+            errorMessage = $"Error calling JavaScript function: {ex.Message}";
         }
+    }
+
+    // Result model for the JavaScript function
+    public class RecordAttendanceResult
+    {
+        public string successMessage { get; set; } = string.Empty;
+        public string errorMessage { get; set; } = string.Empty;
     }
 
     // Redirect to create class page
@@ -428,7 +321,7 @@
 
                     <div class="class-item-buttons">
                         <!-- Button to generate invite code for the class -->
-                        <button class="btn btn-primary" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
+                        <button class="btn btn-primary" id="locationButton" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
 
                         <!-- Button to delete the class -->
                         <button class="btn btn-danger" @onclick="() => DeleteClass(classItem.ClassId, classItem.ClassName)">Delete</button>
@@ -451,10 +344,9 @@
         }
     </ul>
 }
-
-<!-- If user is not an instructor, show classes they can join -->
-@if (isInstructor == false)
+else
 {
+    <!-- If user is not an instructor, show classes they can join -->
     <h4>Join a Class</h4>
 
     <div>
@@ -478,11 +370,8 @@
                         @classItem.ClassName
                     </a>
 
-                    <!-- Check-in button only shown to students -->
-                    @if (!isInstructor)
-                    {
-                        <button class="btn btn-primary class-item-button" @onclick="()=>RecordAttendance(classItem)" data-target="classItem">Check in</button>
-                    }
+                    <button class="btn btn-primary class-item-button" @onclick="()=>RecordAttendance(classItem)" data-target="classItem">Check in</button>
+                    <div id="target"></div>
                 </div>
 
                 <!-- Collapsible div for class details -->
