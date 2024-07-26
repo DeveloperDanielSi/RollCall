@@ -21,7 +21,7 @@ The Home Page is where users log into the application.
 ### Elements on the Home Page
 
 1. **Login Button**
-   - **Description:** Click this button to log into the application.
+   - **Description:** Click this button to log into the application and redirect to classes page.
 
 ---
 
