@@ -1,4 +1,5 @@
 ﻿@page "/classes"
+
 @using Firebase.Database
 @using Firebase.Database.Query
 @using Microsoft.AspNetCore.Components
@@ -9,21 +10,17 @@
 @inject NavigationManager Navigation
 
 @code {
-    // User data
+    // Fields
     private bool isInstructor;
     private UserData userData = new UserData();
     private List<ClassData> classes = new List<ClassData>();
     private List<GeneratedInvite> generatedInvites = new List<GeneratedInvite>();
-
-    // Invite code fields
     private string inviteCode = string.Empty;
     private string joinClassCode = string.Empty;
-
-    // Messages fields
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
 
-    // User data model
+    // Models
     public class UserData
     {
         public string Email { get; set; } = string.Empty;
@@ -31,7 +28,6 @@
         public string DisplayName { get; set; } = string.Empty;
     }
 
-    // Class data model
     public class ClassData
     {
         public string ClassId { get; set; } = string.Empty;
@@ -49,91 +45,10 @@
         public Dictionary<string, string> Students { get; set; } = new Dictionary<string, string>();
     }
 
-    // Generated invite model
     public class GeneratedInvite
     {
         public string InviteCode { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
-    }
-
-    // Initialize component
-    protected override async Task OnInitializedAsync()
-    {
-        // Load user data and check if user is instructor
-        await LoadUserData();
-        await LoadClasses();
-    }
-
-    // Initialize geolocation service
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JSRuntime.InvokeVoidAsync("geoLocation.initialize");
-        }
-    }
-
-    // Load user data using JavaScript interop
-    private async Task LoadUserData()
-    {
-        try
-        {
-            // Invoke JavaScript function to get user data
-            userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
-            // Determine if user is an instructor
-            isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
-        }
-        catch (Exception ex)
-        {
-            // Handle errors if user data retrieval fails
-            errorMessage = $"Error loading user data: {ex.Message}";
-        }
-    }
-
-    // Load classes based on user type (instructor or student)
-    private async Task LoadClasses()
-    {
-        try
-        {
-            if (isInstructor)
-            {
-                // Call JavaScript function to get classes created by the instructor
-                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesByInstructor", userData.Email);
-            }
-            else
-            {
-                // Call JavaScript function to get classes for the student
-                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesForStudent", userData.UID);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Handle errors if loading classes fails
-            errorMessage = $"Error loading classes: {ex.Message}";
-        }
-    }
-
-    // Generate invite code for a specific class
-    private async Task GenerateInviteCode(string classId, string className)
-    {
-        try
-        {
-            // Call JavaScript function to generate invite code
-            var result = await JSRuntime.InvokeAsync<InviteCodeResult>("generateInviteCode", classId, className);
-
-            if (result.errorMessage != null)
-            {
-                errorMessage = result.errorMessage;
-            }
-            else
-            {
-                successMessage = result.successMessage;
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error calling JavaScript function: {ex.Message}";
-        }
     }
 
     public class InviteCodeResult
@@ -143,32 +58,102 @@
         public string errorMessage { get; set; }
     }
 
-    // Refreshes the class list after joining a class but doesn't populate classes already loaded
+    public class JoinClassResult
+    {
+        public string successMessage { get; set; } = string.Empty;
+        public string errorMessage { get; set; } = string.Empty;
+    }
+
+    public class RecordAttendanceResult
+    {
+        public string successMessage { get; set; } = string.Empty;
+        public string errorMessage { get; set; } = string.Empty;
+    }
+
+    // Lifecycle methods
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+        await LoadClasses();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("geoLocation.initialize");
+        }
+    }
+
+    // User data loading
+    private async Task LoadUserData()
+    {
+        try
+        {
+            userData = await JSRuntime.InvokeAsync<UserData>("getUserData");
+            isInstructor = await JSRuntime.InvokeAsync<bool>("getIsInstructor");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading user data: {ex.Message}";
+        }
+    }
+
+    // Class loading
+    private async Task LoadClasses()
+    {
+        try
+        {
+            if (isInstructor)
+            {
+                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesByInstructor", userData.Email);
+            }
+            else
+            {
+                classes = await JSRuntime.InvokeAsync<List<ClassData>>("getClassesForStudent", userData.UID);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading classes: {ex.Message}";
+        }
+    }
+
+    // Generate invite code
+    private async Task GenerateInviteCode(string classId, string className)
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<InviteCodeResult>("generateInviteCode", classId, className);
+            errorMessage = result.errorMessage ?? string.Empty;
+            successMessage = result.successMessage ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error generating invite code: {ex.Message}";
+        }
+    }
+
+    // Refresh class list
     private async Task RefreshClassList()
     {
         try
         {
-            // Clear existing classes
             classes.Clear();
-
-            // Reload classes based on user type
             await LoadClasses();
         }
         catch (Exception ex)
         {
-            // Handle errors if refreshing class list fails
             errorMessage = $"Error refreshing class list: {ex.Message}";
         }
     }
 
-    // Join a class using an invite code
+    // Join class
     private async Task JoinClass()
     {
         try
         {
-            // Call JavaScript function to join the class
             var result = await JSRuntime.InvokeAsync<JoinClassResult>("joinClass", joinClassCode, userData.UID, userData.DisplayName);
-
             if (!string.IsNullOrEmpty(result.errorMessage))
             {
                 errorMessage = result.errorMessage;
@@ -185,57 +170,31 @@
         }
     }
 
-    // Result model for the JavaScript function
-    public class JoinClassResult
-    {
-        public string successMessage { get; set; } = string.Empty;
-        public string errorMessage { get; set; } = string.Empty;
-    }
-
-    // Delete a class and remove it from all enrolled students' lists
+    // Delete class
     private async Task DeleteClass(string classId, string className)
     {
         try
         {
-            // Prompt user to confirm class deletion
             var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete {className}?");
-
             if (confirmDelete)
             {
-                // Call JavaScript function to handle class deletion
                 await JSRuntime.InvokeVoidAsync("deleteClass", classId);
-
-                // Provide success message and reload classes
                 successMessage = "Class deleted successfully!";
                 await LoadClasses();
             }
         }
         catch (Exception ex)
         {
-            // Handle errors if class deletion fails
             errorMessage = $"Error deleting class: {ex.Message}";
         }
     }
 
-    // Result model for the JavaScript function
-    public class DeleteClassResult
-    {
-        public string successMessage { get; set; } = string.Empty;
-        public string errorMessage { get; set; } = string.Empty;
-    }
-
-    // Record attendance for a specific cl
+    // Record attendance
     private async Task RecordAttendance(ClassData classData)
     {
         try
         {
-            // Log the CheckinDistance value for debugging
-            Console.WriteLine($"ClassData.CheckinDistance: {classData.CheckinDistance}");
-
             string tempLocation = await JSRuntime.InvokeAsync<string>("geoLocation.getTarget");
-            StateHasChanged();
-            Console.WriteLine($"Location: {tempLocation}");
-
             var result = await JSRuntime.InvokeAsync<RecordAttendanceResult>("recordAttendance", classData.ClassId, userData.UID, userData.DisplayName, tempLocation);
 
             if (!string.IsNullOrEmpty(result.errorMessage))
@@ -253,30 +212,32 @@
         }
     }
 
-    // Result model for the JavaScript function
-    public class RecordAttendanceResult
+    // Change class location
+    private async Task ChangeClassLocation(string classId)
     {
-        public string successMessage { get; set; } = string.Empty;
-        public string errorMessage { get; set; } = string.Empty;
+        try
+        {
+            var confirmChange = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to change the location?");
+            if (confirmChange)
+            {
+                string newLocation = await JSRuntime.InvokeAsync<string>("updateClassLocation", classId);
+                successMessage = $"Class location updated successfully to: {newLocation}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error changing location: {ex.Message}";
+        }
     }
 
-    // Redirect to create class page
-    private void RedirectToCreateClass()
-    {
-        Navigation.NavigateTo("/classes/create");
-    }
+    // Navigation methods
+    private void RedirectToCreateClass() => Navigation.NavigateTo("/classes/create");
 
-    // Method to sanitize class name for use as collapse id
-    string SanitizeClassName(string className)
-    {
-        return className.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
-    }
+    private async Task ToggleClassDetails(string className) => await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
 
-    // Toggle visibility of class details
-    private async Task ToggleClassDetails(string className)
-    {
-        await JSRuntime.InvokeVoidAsync("toggleCollapse", "collapse-" + className);
-    }
+    // Utility method to sanitize class name for collapse id
+    private string SanitizeClassName(string className) =>
+        className.Replace(" ", "-").Replace(".", "").Replace("#", "").Replace("[", "").Replace("]", "");
 }
 
 <PageTitle>Classes</PageTitle>
@@ -320,8 +281,11 @@
                     </a>
 
                     <div class="class-item-buttons">
+                        <!-- Button to set a new class location-->
+                        <button class="btn btn-secondary" @onclick="() => ChangeClassLocation(classItem.ClassId)">Change Location</button>
+
                         <!-- Button to generate invite code for the class -->
-                        <button class="btn btn-primary" id="locationButton" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
+                        <button class="btn btn-primary" @onclick="() => GenerateInviteCode(classItem.ClassId, classItem.ClassName)">Generate Invite Code</button>
 
                         <!-- Button to delete the class -->
                         <button class="btn btn-danger" @onclick="() => DeleteClass(classItem.ClassId, classItem.ClassName)">Delete</button>

@@ -199,6 +199,103 @@ main[b-7vgifljx83] {
     width: 100%;
     margin-top: 1rem;
 }
+/* /Pages/CreateClass.razor.rz.scp.css */
+/* General page styling */
+body[b-wqvn4cjjbp] {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 20px;
+    background-color: #f4f4f4;
+}
+
+PageTitle[b-wqvn4cjjbp] {
+    display: block;
+    font-size: 2em;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* Styling for form container */
+.EditForm[b-wqvn4cjjbp] {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Header styling */
+h3[b-wqvn4cjjbp] {
+    text-align: center;
+    color: #333;
+}
+
+/* Styling for form layout */
+.form-item[b-wqvn4cjjbp] {
+    margin-bottom: 15px;
+}
+
+    .form-item label[b-wqvn4cjjbp] {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .form-item input[b-wqvn4cjjbp] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+/* Centering the checkboxes */
+.checkbox-group[b-wqvn4cjjbp] {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+    .checkbox-group label[b-wqvn4cjjbp] {
+        display: flex;
+        align-items: center;
+    }
+
+    .checkbox-group input[b-wqvn4cjjbp] {
+        margin-right: 10px;
+    }
+
+.button-group[b-wqvn4cjjbp] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+    .button-group button[b-wqvn4cjjbp] {
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+        .button-group button:hover[b-wqvn4cjjbp] {
+            background-color: #0056b3;
+        }
+
+.submit-button[b-wqvn4cjjbp] {
+    text-align: center;
+}
+
+.alert[b-wqvn4cjjbp] {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
 /* /Pages/Home.razor.rz.scp.css */
 .gsi-material-button[b-qm9agefbbj] {
     -moz-user-select: none;
