@@ -197,101 +197,101 @@
 <h3>Create Class</h3>
 
 <!-- Form to create a new class -->
-<EditForm Model="@classModel">
+<EditForm Model="@classModel" class="EditForm">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
     @if (isInstructor == true)
     {
         <!-- Class Name input field -->
-        <div>
-            <label>Class Name:</label>
-            <InputText @bind-Value="classModel.ClassName" />
+        <div class="form-item">
+            <label for="className">Class Name:</label>
+            <InputText id="className" @bind-Value="classModel.ClassName" />
         </div>
 
         <!-- Days of the week checkboxes -->
-        <div>
+        <div class="form-item">
             <label>What days does the class meet?</label>
-            <div>
-                <InputCheckbox @bind-Value="classModel.Monday" />
-                <label>Monday</label>
+            <div class="checkbox-group">
+                <label>
+                    <InputCheckbox id="monday" @bind-Value="classModel.Monday" />
+                    Monday
+                </label>
+                <label>
+                    <InputCheckbox id="tuesday" @bind-Value="classModel.Tuesday" />
+                    Tuesday
+                </label>
+                <label>
+                    <InputCheckbox id="wednesday" @bind-Value="classModel.Wednesday" />
+                    Wednesday
+                </label>
+                <label>
+                    <InputCheckbox id="thursday" @bind-Value="classModel.Thursday" />
+                    Thursday
+                </label>
+                <label>
+                    <InputCheckbox id="friday" @bind-Value="classModel.Friday" />
+                    Friday
+                </label>
             </div>
-            <div>
-                <InputCheckbox @bind-Value="classModel.Tuesday" />
-                <label>Tuesday</label>
-            </div>
-            <div>
-                <InputCheckbox @bind-Value="classModel.Wednesday" />
-                <label>Wednesday</label>
-            </div>
-            <div>
-                <InputCheckbox @bind-Value="classModel.Thursday" />
-                <label>Thursday</label>
-            </div>
-            <div>
-                <InputCheckbox @bind-Value="classModel.Friday" />
-                <label>Friday</label>
-            </div>
         </div>
 
-        <!-- Class Start Time input field -->
-        <div>
-            <label>Class Start Time:</label>
-            <InputText @bind-Value="classModel.ClassStartTime" type="time" />
+        <!-- Class Start Time and End Time input fields -->
+        <div class="form-item">
+            <label for="classStartTime">Class Start Time:</label>
+            <InputText id="classStartTime" @bind-Value="classModel.ClassStartTime" />
+        </div>
+        <div class="form-item">
+            <label for="classEndTime">Class End Time:</label>
+            <InputText id="classEndTime" @bind-Value="classModel.ClassEndTime" />
         </div>
 
-        <!-- Class End Time input field -->
-        <div>
-            <label>Class End Time:</label>
-            <InputText @bind-Value="classModel.ClassEndTime" type="time" />
+        <!-- Class Start Date and End Date input fields -->
+        <div class="form-item">
+            <label for="classStartDate">Class Start Date:</label>
+            <InputDate id="classStartDate" @bind-Value="classModel.ClassStartDate" />
+        </div>
+        <div class="form-item">
+            <label for="classEndDate">Class End Date:</label>
+            <InputDate id="classEndDate" @bind-Value="classModel.ClassEndDate" />
         </div>
 
-        <!-- Class Start Date input field -->
-        <div>
-            <label>Class Start Date:</label>
-            <InputDate @bind-Value="classModel.ClassStartDate" />
+        <!-- Late Minutes and Absent Minutes input fields -->
+        <div class="form-item">
+            <label for="lateMinutes">How many minutes is considered late?</label>
+            <InputNumber id="lateMinutes" @bind-Value="classModel.LateMinutes" />
         </div>
-
-        <!-- Class End Date input field -->
-        <div>
-            <label>Class End Date:</label>
-            <InputDate @bind-Value="classModel.ClassEndDate" />
-        </div>
-
-        <!-- Late Minutes input field -->
-        <div>
-            <label>How many minutes is considered late?</label>
-            <InputNumber @bind-Value="classModel.LateMinutes" />
-        </div>
-
-        <!-- Absent Minutes input field -->
-        <div>
-            <label>How many minutes is considered absent?</label>
-            <InputNumber @bind-Value="classModel.AbsentMinutes" />
+        <div class="form-item">
+            <label for="absentMinutes">How many minutes is considered absent?</label>
+            <InputNumber id="absentMinutes" @bind-Value="classModel.AbsentMinutes" />
         </div>
     }
 
     <!-- Checkin Location input field -->
-    <div>
-        <button @onclick="GetLocation" type="button" id="locationButton">Get Current Location</button>
-        <InputText id="target" @bind-Value="classModel.CheckinLocation" readonly="true" />
+    <div class="form-item">
+        <div class="button-group">
+            <button @onclick="GetLocation" type="button" id="locationButton">Get Current Location</button>
+            <InputText id="target" @bind-Value="classModel.CheckinLocation" readonly="true" />
+        </div>
     </div>
 
     @if (isInstructor == true)
     {
         <!-- Checkin Distance input field -->
-        <div>
-            <label>What is the maximum distance for check-in (in meters)?</label>
-            <InputNumber @bind-Value="classModel.CheckinDistance" />
+        <div class="form-item">
+            <label for="checkinDistance">What is the maximum distance for check-in (in meters)?</label>
+            <InputNumber id="checkinDistance" @bind-Value="classModel.CheckinDistance" />
         </div>
 
         <!-- Submit button -->
-        <button class="btn btn-primary" type="submit" @onclick="HandleValidSubmit">Submit</button>
+        <div class="submit-button">
+            <button class="btn btn-primary" type="submit" @onclick="HandleValidSubmit">Submit</button>
+        </div>
     }
 </EditForm>
 
 <!-- Display error message if any -->
 @if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-danger">@errorMessage</div>
+    <div class="alert">@errorMessage</div>
 }
