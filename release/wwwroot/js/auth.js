@@ -132,12 +132,10 @@ function isUserAuthenticated() {
  * Function to handle user logout.
  */
 async function logout() {
+    isInstructor = false;
     try {
-        await firebase.auth().signOut();
+        await auth.signOut();
         console.log("User signed out.");
-
-        // Dispatch a custom event to notify Blazor
-        window.dispatchEvent(new CustomEvent('user-logged-out'));
     } catch (error) {
         console.error("Sign out error:", error);
         alert("Sign out failed. Please try again.");
@@ -167,16 +165,6 @@ function toggleCollapse(className) {
         $(element).collapse('toggle');
     }
 }
-
-// Check if user is authenticated and return status to Blazor
-window.isUserAuthenticated = function () {
-    return !!auth.currentUser;
-};
-
-// Register the event listener in the context of your Blazor app
-window.addEventListener('user-logged-out', function () {
-    DotNet.invokeMethodAsync('RollCall', 'OnUserLoggedOut');
-});
 
 // Expose functions to the global scope
 window.loginWithGoogle = loginWithGoogle;

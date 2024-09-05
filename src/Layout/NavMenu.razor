@@ -1,4 +1,6 @@
-﻿<!-- Top navigation bar -->
+﻿@inject IJSRuntime JSRuntime
+
+<!-- Top navigation bar -->
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <!-- Brand name with a link to the home page -->
@@ -10,46 +12,63 @@
     </div>
 </div>
 
-<!-- Navigation menu -->
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <!-- Home link -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <!-- Classes link -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="classes">
-                <span class="bi bi-calendar-nav-menu" aria-hidden="true"></span> Classes
-            </NavLink>
-        </div>
-        <!-- Reporting link -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="reporting">
-                <span class="bi bi-checkboard-nav-menu" aria-hidden="true"></span> Reporting
-            </NavLink>
-        </div>
-        <!-- Settings link -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="settings">
-                <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Settings
-            </NavLink>
-        </div>
-    </nav>
-</div>
+@if (isAuthenticated)
+{
+    <!-- Navigation menu -->
+    <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+        <nav class="flex-column">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="classes">
+                    <span class="bi bi-calendar-nav-menu" aria-hidden="true"></span> Classes
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="reporting">
+                    <span class="bi bi-checkboard-nav-menu" aria-hidden="true"></span> Reporting
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="settings">
+                    <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Settings
+                </NavLink>
+            </div>
+        </nav>
+    </div>
+}
 
 @code {
-    // Field to control the collapse state of the navigation menu
     private bool collapseNavMenu = true;
+    private bool isAuthenticated = false;
 
-    // Property to get the appropriate CSS class based on the collapse state
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    // Method to toggle the collapse state of the navigation menu
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Add event listener for custom event
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            window.addEventListener('user-logged-out', function() {
+                DotNet.invokeMethodAsync('RollCall', 'OnUserLoggedOut');
+            });
+        ");
+
+        // Check the authentication status
+        isAuthenticated = await JSRuntime.InvokeAsync<bool>("isUserAuthenticated");
+    }
+
+    [JSInvokable]
+    public static Task OnUserLoggedOut()
+    {
+        // Logic to handle user logout event
+        return Task.CompletedTask;
     }
 }

@@ -56,7 +56,7 @@
         try
         {
             var classesJson = await JSRuntime.InvokeAsync<string>("loadClassesReporting", userData, isInstructor);
-            Console.WriteLine("Classes JSON: " + classesJson);
+            // Console.WriteLine("Classes JSON: " + classesJson);
 
             var options = new JsonSerializerOptions
                 {
@@ -64,7 +64,7 @@
                 };
 
             classes = JsonSerializer.Deserialize<List<ClassData>>(classesJson, options);
-            Console.WriteLine("Loaded Classes: " + JsonSerializer.Serialize(classes, options));
+            // Console.WriteLine("Loaded Classes: " + JsonSerializer.Serialize(classes, options));
         }
         catch (Exception ex)
         {

@@ -11,7 +11,7 @@
     <main>
         <!-- Top row with the current date and time in EST and a link to the GitHub repository -->
         <div class="top-row px-4">
-            <span class="current-time">@GetCurrentEstTime()</span>
+            <span class="current-time">@_currentEstTime</span>
             <a href="https://github.com/TheGreatestDaniel/RollCall" target="_blank" class="ml-auto">About</a>
         </div>
 
@@ -23,6 +23,25 @@
 </div>
 
 @code {
+    private string _currentEstTime;
+    private System.Threading.Timer _timer;
+
+    protected override void OnInitialized()
+    {
+        // Initialize the time display with the current time
+        _currentEstTime = GetCurrentEstTime();
+
+        // Set up a timer to update the time every second (1000 ms)
+        _timer = new System.Threading.Timer(UpdateTime, null, 0, 1000);
+    }
+
+    private void UpdateTime(object state)
+    {
+        // Update the time and request a UI refresh
+        _currentEstTime = GetCurrentEstTime();
+        InvokeAsync(StateHasChanged);
+    }
+
     private string GetCurrentEstTime()
     {
         try
@@ -39,5 +58,11 @@
         {
             return "Invalid time zone";
         }
+    }
+
+    // Dispose of the timer when the component is disposed
+    public void Dispose()
+    {
+        _timer?.Dispose();
     }
 }
