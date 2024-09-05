@@ -1,5 +1,5 @@
 ﻿/* General page styling */
-body {
+/*body {
     font-family: Arial, sans-serif;
     line-height: 1.6;
     margin: 20px;
@@ -11,26 +11,26 @@ PageTitle {
     font-size: 2em;
     margin-bottom: 10px;
     text-align: center;
-}
+}*/
 
 /* Styling for form container */
-.EditForm {
+/*.EditForm {
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
     max-width: 600px;
     margin: 0 auto;
-}
+}*/
 
 /* Header styling */
-h3 {
+/*h3 {
     text-align: center;
     color: #333;
-}
+}*/
 
 /* Styling for form layout */
-.form-item {
+/*.form-item {
     margin-bottom: 15px;
 }
 
@@ -45,10 +45,10 @@ h3 {
         padding: 8px;
         border: 1px solid #ddd;
         border-radius: 4px;
-    }
+    }*/
 
 /* Centering the checkboxes */
-.checkbox-group {
+/*.checkbox-group {
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -93,4 +93,4 @@ h3 {
     padding: 10px;
     border-radius: 4px;
     margin-top: 10px;
-}
+}*/

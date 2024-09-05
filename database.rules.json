@@ -1,6 +1,9 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": "auth != null",   // Allow read access only to authenticated users
+    ".write": "auth != null",  // Allow write access only to authenticated users
+    "classes": {
+      ".indexOn": ["creatorEmail"] // Indexing for optimized queries on the classes node
+    }
   }
 }

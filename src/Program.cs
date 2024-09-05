@@ -28,18 +28,7 @@ builder.Services.AddOidcAuthentication(options =>
     options.ProviderOptions.DefaultScopes.Add("profile");
     options.ProviderOptions.DefaultScopes.Add("email");
     options.ProviderOptions.ResponseMode = "query";
-
-    //// Configure  options.ProviderOptions.DefaultScopes.Add("openid");
-    //options.ProviderOptions.DefaultScopes.Add("profile");
-    //options.ProviderOptions.DefaultScopes.Add("email");
-    //options.ProviderOptions.ResponseMode = "query";
 });
-
-//builder.AddAuthorizationCore(
-//Options => {
-//    Options.addpolicy("admin", policy => {
-//    Policy.requireRole(RoleScopes.YOURADMINROLE));
-//});
 
 // Build and run the app
 await builder.Build().RunAsync();
